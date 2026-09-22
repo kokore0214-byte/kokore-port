@@ -1,0 +1,29 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import { projects } from '../../data/projects'
+---
+
+<Layout title="Projects — Portfolio">
+  <section class="mx-auto max-w-5xl px-6 py-20 text-center">
+    <p class="text-[21px] leading-[1.19]">
+      A Curated Selection of <span class="text-ink-muted">Design and Digital Projects</span>
+    </p>
+  </section>
+
+  <section class="mx-auto grid max-w-5xl grid-cols-1 gap-px bg-hairline/60 px-6 pb-24 sm:grid-cols-3">
+    {projects.map((p) => (
+      <a href={`/projects/${p.slug}`} class="group relative flex flex-col bg-canvas">
+        {p.comingSoon && (
+          <span class="absolute left-4 top-4 rounded-full bg-parchment px-2.5 py-1 text-[11px] text-ink-muted">
+            Coming Soon
+          </span>
+        )}
+        <div class="aspect-[4/5] w-full bg-parchment transition-colors group-hover:bg-hairline/50"></div>
+        <div class="px-1 py-4">
+          <h2 class="text-[14px] font-semibold tracking-[-0.224px]">{p.title}</h2>
+          <p class="mt-1 text-[12px] text-ink-muted">{p.tags.join(', ')}</p>
+        </div>
+      </a>
+    ))}
+  </section>
+</Layout>

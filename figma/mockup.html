@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Portfolio Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+  :root {
+    /* Apple DESIGN.md tokens (../DESIGN.md) */
+    --accent: #0066cc;          /* Action Blue — light surfaces */
+    --accent-on-dark: #2997ff;  /* Sky Link Blue — over photo/dark surfaces */
+    --bg: #f5f5f7;              /* canvas-parchment */
+    --text: #1d1d1f;            /* ink */
+    --text-soft: #7a7a7a;       /* ink-muted-48 */
+    --card-bg: #ffffff;         /* canvas */
+    --hairline: #e0e0e0;
+    --glass-bg: rgba(245,245,247,0.8); /* sub-nav-frosted */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Pretendard, Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- HERO (핵심 페이지) ---------- */
+  .hero {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    min-height: 640px;
+    overflow: hidden;
+    background: #2a2a28 url('https://picsum.photos/1600/2000?grayscale') center/cover no-repeat;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.35));
+    pointer-events: none;
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 60px;
+    background-image:
+      radial-gradient(circle at 0 0, #ffffff 2px, transparent 2.5px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.35) 0, rgba(255,255,255,0.35) 1px, transparent 1px, transparent 90px),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.35) 0, rgba(255,255,255,0.35) 1px, transparent 1px, transparent 90px);
+    background-size: 90px 90px, auto, auto;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+  }
+
+  .hero.grid-on .hero-grid { opacity: 1; }
+
+  .corner-label {
+    position: absolute;
+    top: 28px;
+    left: 32px;
+    font-size: 12px;
+    letter-spacing: -0.12px;
+    color: #ffffff;
+    z-index: 5;
+  }
+
+  /* ---------- 중앙 글래스모피즘 인덱스 ---------- */
+  .glass-index {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 6;
+    padding: 14px 28px;
+    border-radius: 9999px;
+    background: var(--glass-bg);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    color: var(--text);
+    font-size: 14px;
+    letter-spacing: -0.224px;
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.3s ease;
+  }
+
+  .glass-index::before {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,102,204,0.28) 0%, rgba(0,102,204,0) 70%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: -1;
+  }
+
+  .glass-index:hover {
+    background: rgba(245,245,247,0.92);
+    transform: translate(-50%, -50%) scale(1.03);
+  }
+
+  .glass-index:hover::before {
+    opacity: 1;
+  }
+
+  /* ---------- 흩뿌려진 마커: *(ONE) *(TWO) ... ---------- */
+  .marker {
+    position: absolute;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent-on-dark);
+    font-size: 14px;
+    letter-spacing: -0.224px;
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+  }
+
+  /* 마커 하나에 커서를 올리면 나머지는 옅게 페이드아웃 */
+  .hero:has(.marker:hover) .marker:not(:hover) {
+    opacity: 0;
+  }
+
+  .marker .star {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffffff;
+    flex-shrink: 0;
+  }
+
+  .marker .handwritten {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Pretendard, Inter, Helvetica, Arial, sans-serif;
+    font-weight: 400;
+    font-size: 15px;
+    letter-spacing: -0.224px;
+    color: #fff;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    white-space: nowrap;
+  }
+
+  .marker:hover .handwritten {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ---------- 챕터별 미리보기 (같은 14x9 그리드 셀 안에 넓게 분산 배치) ---------- */
+  .preview {
+    position: absolute;
+    inset: 60px;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: repeat(14, 90px);
+    grid-template-rows: repeat(9, 90px);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+
+  #m-one:hover ~ #p-one { opacity: 1; }
+  #m-two:hover ~ #p-two { opacity: 1; }
+  #m-three:hover ~ #p-three { opacity: 1; }
+  #m-four:hover ~ #p-four { opacity: 1; }
+
+  .preview .cell { width: 100%; height: 100%; }
+
+  /* ONE: Product — 사진 그리드 콜라주, 그리드 셀 안에 꽉 채워서 배치 */
+  #p-one .cell { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.35); }
+  #p-one .c1 { grid-column: 2; grid-row: 1; }
+  #p-one .c2 { grid-column: 5; grid-row: 2; }
+  #p-one .c3 { grid-column: 8; grid-row: 1; }
+  #p-one .c4 { grid-column: 3; grid-row: 4; }
+  #p-one .c5 { grid-column: 10; grid-row: 3; }
+  #p-one .c6 { grid-column: 1; grid-row: 6; }
+  #p-one .c7 { grid-column: 7; grid-row: 6; }
+  #p-one .c8 { grid-column: 12; grid-row: 5; }
+
+  /* TWO: Photography — 사진 2장, 인접한 셀에 나란히 */
+  #p-two .cell { background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.35); }
+  #p-two .c1 { grid-column: 3; grid-row: 2; }
+  #p-two .c2 { grid-column: 3; grid-row: 3; filter: blur(1.5px); }
+  #p-two .c3 { grid-column: 9; grid-row: 1; }
+  #p-two .c4 { grid-column: 11; grid-row: 4; filter: blur(1.5px); }
+  #p-two .c5 { grid-column: 6; grid-row: 6; }
+  #p-two .c6 { grid-column: 13; grid-row: 6; filter: blur(1.5px); }
+
+  /* THREE: Visual — 추상 원형 패턴, 그리드 전역에 흩뿌려짐 */
+  #p-three .cell { border-radius: 50%; background: rgba(255,255,255,0.3); }
+  #p-three .c1 { grid-column: 2; grid-row: 1; background: rgba(255,255,255,0.15); }
+  #p-three .c2 { grid-column: 5; grid-row: 2; }
+  #p-three .c3 { grid-column: 8; grid-row: 1; background: rgba(255,255,255,0.45); }
+  #p-three .c4 { grid-column: 11; grid-row: 2; }
+  #p-three .c5 { grid-column: 3; grid-row: 4; background: rgba(255,255,255,0.15); }
+  #p-three .c6 { grid-column: 7; grid-row: 4; background: rgba(255,255,255,0.45); }
+  #p-three .c7 { grid-column: 10; grid-row: 5; }
+  #p-three .c8 { grid-column: 13; grid-row: 3; }
+  #p-three .c9 { grid-column: 2; grid-row: 6; }
+  #p-three .c10 { grid-column: 6; grid-row: 7; background: rgba(255,255,255,0.15); }
+  #p-three .c11 { grid-column: 12; grid-row: 7; }
+
+  /* FOUR: AI — 격자 스캔 패턴, 한 블록에 조밀하게 */
+  #p-four .cell { background: rgba(255,255,255,0.14); }
+  #p-four .a { background: rgba(255,255,255,0.35); }
+  #p-four .c1 { grid-column: 3; grid-row: 1; }
+  #p-four .c2 { grid-column: 6; grid-row: 2; }
+  #p-four .c3 { grid-column: 9; grid-row: 1; }
+  #p-four .c4 { grid-column: 1; grid-row: 4; }
+  #p-four .c5 { grid-column: 4; grid-row: 5; }
+  #p-four .c6 { grid-column: 8; grid-row: 4; }
+  #p-four .c7 { grid-column: 11; grid-row: 3; }
+  #p-four .c8 { grid-column: 13; grid-row: 5; }
+  #p-four .c9 { grid-column: 5; grid-row: 7; }
+  #p-four .c10 { grid-column: 10; grid-row: 7; }
+
+  /* ---------- 아래 카테고리 섹션 (요약) ---------- */
+  section.category {
+    position: relative;
+    max-width: 1100px;
+    margin: 96px auto 120px;
+    padding: 0 24px;
+  }
+
+  .category-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .category-heading .num {
+    font-size: 14px;
+    letter-spacing: -0.224px;
+    color: var(--text-soft);
+  }
+
+  .category-heading h2 {
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: 0.231px;
+  }
+
+  .scatter {
+    position: relative;
+    height: 320px;
+  }
+
+  .scatter-item {
+    position: absolute;
+    width: 130px;
+    height: 160px;
+    background: var(--card-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 18px;
+    display: flex;
+    align-items: flex-end;
+    padding: 10px;
+    font-size: 14px;
+    letter-spacing: -0.224px;
+    color: var(--text-soft);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+    cursor: pointer;
+  }
+
+  .scatter-item:hover {
+    transform: scale(1.03);
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  footer {
+    text-align: center;
+    padding: 48px 24px 80px;
+    color: var(--text-soft);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+  <section class="hero" id="hero">
+    <div class="hero-grid" id="heroGrid"></div>
+    <div class="corner-label">AUTHOR'S NOTE</div>
+
+    <div class="glass-index">Index</div>
+
+    <div class="marker" id="m-one" style="top:20%; left:14%;" onmouseenter="grid(true)" onmouseleave="grid(false)">
+      <span class="star"></span><span>(ONE)</span>
+      <span class="handwritten">Product</span>
+    </div>
+    <div class="preview" id="p-one">
+      <div class="cell c1"></div><div class="cell c2"></div><div class="cell c3"></div><div class="cell c4"></div>
+      <div class="cell c5"></div><div class="cell c6"></div><div class="cell c7"></div><div class="cell c8"></div>
+    </div>
+
+    <div class="marker" id="m-two" style="top:52%; left:38%;" onmouseenter="grid(true)" onmouseleave="grid(false)">
+      <span class="star"></span><span>(TWO)</span>
+      <span class="handwritten">Photography</span>
+    </div>
+    <div class="preview" id="p-two">
+      <div class="cell c1"></div><div class="cell c2"></div><div class="cell c3"></div>
+      <div class="cell c4"></div><div class="cell c5"></div><div class="cell c6"></div>
+    </div>
+
+    <div class="marker" id="m-three" style="top:18%; left:74%;" onmouseenter="grid(true)" onmouseleave="grid(false)">
+      <span class="star"></span><span>(THREE)</span>
+      <span class="handwritten">Visual</span>
+    </div>
+    <div class="preview" id="p-three">
+      <span class="cell c1"></span><span class="cell c2"></span><span class="cell c3"></span><span class="cell c4"></span>
+      <span class="cell c5"></span><span class="cell c6"></span><span class="cell c7"></span><span class="cell c8"></span>
+      <span class="cell c9"></span><span class="cell c10"></span><span class="cell c11"></span>
+    </div>
+
+    <div class="marker" id="m-four" style="top:70%; left:66%;" onmouseenter="grid(true)" onmouseleave="grid(false)">
+      <span class="star"></span><span>(FOUR)</span>
+      <span class="handwritten">AI</span>
+    </div>
+    <div class="preview" id="p-four">
+      <span class="cell c1"></span><span class="cell c2"></span><span class="cell c3"></span>
+      <span class="cell c4"></span><span class="cell c5"></span><span class="cell c6"></span>
+      <span class="cell c7"></span><span class="cell c8"></span><span class="cell c9"></span><span class="cell c10"></span>
+    </div>
+  </section>
+
+  <section class="category" id="cat-1">
+    <div class="category-heading">
+      <span class="num">01</span>
+      <h2>Product</h2>
+    </div>
+    <div class="scatter">
+      <div class="scatter-item" style="top:10%; left:5%;">Project A</div>
+      <div class="scatter-item" style="top:40%; left:28%;">Project B</div>
+      <div class="scatter-item" style="top:5%; left:52%;">Project C</div>
+      <div class="scatter-item" style="top:45%; left:72%;">Project D</div>
+    </div>
+  </section>
+
+  <section class="category" id="cat-2">
+    <div class="category-heading">
+      <span class="num">02</span>
+      <h2>Photography</h2>
+    </div>
+    <div class="scatter">
+      <div class="scatter-item" style="top:0%; left:15%;">Shot A</div>
+      <div class="scatter-item" style="top:35%; left:45%;">Shot B</div>
+      <div class="scatter-item" style="top:15%; left:68%;">Shot C</div>
+    </div>
+  </section>
+
+  <section class="category" id="cat-3">
+    <div class="category-heading">
+      <span class="num">03</span>
+      <h2>Visual</h2>
+    </div>
+    <div class="scatter">
+      <div class="scatter-item" style="top:8%; left:10%;">Visual A</div>
+      <div class="scatter-item" style="top:38%; left:35%;">Visual B</div>
+      <div class="scatter-item" style="top:12%; left:60%;">Visual C</div>
+      <div class="scatter-item" style="top:42%; left:80%;">Visual D</div>
+    </div>
+  </section>
+
+  <section class="category" id="cat-4">
+    <div class="category-heading">
+      <span class="num">04</span>
+      <h2>AI</h2>
+    </div>
+    <div class="scatter">
+      <div class="scatter-item" style="top:5%; left:20%;">AI Project A</div>
+      <div class="scatter-item" style="top:40%; left:50%;">AI Project B</div>
+    </div>
+  </section>
+
+  <footer>
+    © Designer Name — contact@example.com
+  </footer>
+
+  <script>
+    function grid(on) {
+      document.getElementById('hero').classList.toggle('grid-on', on);
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,136 @@
+---
+import Layout from '../layouts/Layout.astro'
+
+const principles = [
+  {
+    title: 'Quality',
+    body: '작업은 마감을 채우기 위해서가 아니라 의도를 담아 완성됩니다. 모든 프로젝트는 그에 맞는 시간과 정성을 필요로 합니다.',
+  },
+  {
+    title: 'Feel',
+    body: '디자인은 보이는 것을 넘어 경험입니다. 손에 닿는 느낌, 시선이 흐르는 방향, 인터랙션에 반응하는 방식까지 고려합니다.',
+  },
+  {
+    title: 'Purpose',
+    body: '모든 프로젝트는 아이디어가 아니라 의도에서 시작합니다. 창의적 관점과 전략, 목표에 대한 이해가 균형을 이룰 때 결과가 나옵니다.',
+  },
+  {
+    title: 'Obsession',
+    body: '좋은 것과 훌륭한 것의 차이는 디테일에 있습니다. 간격, 전환, 반복해서 다듬은 선택 — 그 디테일이 전체 품질을 결정합니다.',
+  },
+]
+
+const press = [
+  {
+    outlet: 'Designboom',
+    title: 'Rice Brick',
+    url: 'https://www.designboom.com/design/discarded-rice-building-material-value-cycle-wasted-grain-ssal-rice-as-matter-juwon-kim-na-hyeon/',
+    date: '2026.02.08',
+  },
+]
+---
+
+<Layout title="About — Portfolio">
+  <section class="relative mx-auto max-w-3xl px-6 py-28 text-center">
+    <div class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+      <canvas id="blob-canvas" width="240" height="240" class="h-[240px] w-[240px]"></canvas>
+    </div>
+
+    <p class="relative text-[14px] text-ink-muted">Product Designer</p>
+    <h1
+      class="relative mt-6 text-[40px] italic leading-[1.2] tracking-[0] text-white mix-blend-difference"
+      style="font-family: var(--font-serif)"
+    >
+      Designing tangible solutions for environmental and social inequality — not just symbolic gestures.
+    </h1>
+  </section>
+
+  <script>
+    async function initBlob() {
+      const canvas = document.getElementById('blob-canvas') as HTMLCanvasElement | null
+      if (!canvas) return
+
+      const THREE = await import('three')
+      const { RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js')
+
+      const size = canvas.clientWidth || 240
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
+      renderer.setSize(size, size, false)
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+      const scene = new THREE.Scene()
+      const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 10)
+      camera.position.set(0, 0, 3.2)
+
+      const pmrem = new THREE.PMREMGenerator(renderer)
+      scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+
+      const geometry = new THREE.IcosahedronGeometry(1, 16)
+      const material = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.08 })
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.scale.set(1, 1.12, 0.92)
+      scene.add(mesh)
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      let frameId = 0
+      const animate = () => {
+        if (!reduceMotion) {
+          mesh.rotation.y += 0.004
+          mesh.rotation.x += 0.0015
+        }
+        renderer.render(scene, camera)
+        frameId = requestAnimationFrame(animate)
+      }
+      animate()
+
+      const onResize = () => {
+        const s = canvas.clientWidth || 240
+        renderer.setSize(s, s, false)
+      }
+      window.addEventListener('resize', onResize)
+
+      document.addEventListener(
+        'astro:before-swap',
+        () => {
+          cancelAnimationFrame(frameId)
+          window.removeEventListener('resize', onResize)
+          renderer.dispose()
+        },
+        { once: true },
+      )
+    }
+
+    document.addEventListener('astro:page-load', initBlob)
+  </script>
+
+  <section class="mx-auto max-w-3xl px-6 pb-24">
+    <div class="grid grid-cols-1 gap-16 sm:grid-cols-2">
+      {principles.map((p) => (
+        <div>
+          <h2 class="text-[17px] font-semibold tracking-[-0.374px]">{p.title}</h2>
+          <p class="mt-3 text-[14px] leading-[1.43] text-ink-muted">{p.body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-3xl px-6 pb-24">
+    <h2 class="text-[14px] font-semibold tracking-[-0.224px] text-ink-muted">Press</h2>
+    <ul class="mt-4 space-y-3">
+      {press.map((p) => (
+        <li>
+          <a
+            href={p.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group flex flex-col gap-1 text-[14px] sm:flex-row sm:items-baseline sm:gap-3"
+          >
+            <span class="font-semibold text-ink group-hover:text-accent transition-colors">{p.outlet}</span>
+            <span class="text-ink-muted group-hover:text-accent transition-colors">{p.title}</span>
+            <span class="text-[12px] text-ink-muted">{p.date}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+</Layout>

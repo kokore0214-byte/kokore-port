@@ -1,0 +1,83 @@
+---
+import { ClientRouter } from 'astro:transitions'
+import '../styles/global.css'
+
+interface Props {
+  title: string
+}
+
+const { title } = Astro.props
+const path = Astro.url.pathname
+
+const navItems = [
+  { number: 1, label: 'Home', href: '/' },
+  { number: 2, label: 'Projects', href: '/projects' },
+  { number: 3, label: 'About', href: '/about' },
+]
+
+const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href))
+---
+
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <ClientRouter />
+  </head>
+  <body class="min-h-screen bg-canvas text-ink">
+    <header class="sticky top-0 z-10 border-b border-hairline/60 bg-canvas/80 backdrop-blur-md">
+      <nav class="mx-auto flex max-w-5xl items-center gap-6 px-6 py-4">
+        <a href="/" class="text-[14px] font-semibold tracking-[-0.224px]">KOKORE</a>
+        <ul class="flex items-center gap-1 text-[12px] text-ink-muted">
+          {navItems.map((item, i) => (
+            <li class="flex items-center gap-1">
+              {i > 0 && <span class="mx-1 text-hairline">/</span>}
+              <a
+                href={item.href}
+                class:list={[
+                  'group flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors',
+                  isActive(item.href) ? 'text-ink' : 'hover:text-ink',
+                ]}
+              >
+                <span
+                  class:list={[
+                    'flex h-5 w-5 items-center justify-center rounded-full text-[11px] transition-colors',
+                    isActive(item.href) ? 'bg-accent text-white' : 'bg-parchment text-ink-muted group-hover:bg-hairline/60',
+                  ]}
+                >
+                  {item.number}
+                </span>
+                <span
+                  class:list={[
+                    'overflow-hidden whitespace-nowrap transition-all duration-200',
+                    isActive(item.href) ? 'max-w-[80px] opacity-100' : 'max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-100',
+                  ]}
+                >
+                  {item.label}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="border-t border-hairline/60 bg-parchment px-6 py-16 text-center">
+      <p class="text-[14px] text-ink-muted">
+        <a href="mailto:kokore0214@gmail.com" class="text-ink hover:text-accent transition-colors">kokore0214@gmail.com</a>
+      </p>
+      <p class="mt-2 text-[12px] text-ink-muted">
+        <a href="https://www.instagram.com/jutopia_214/?hl=ko" target="_blank" rel="noopener noreferrer" class="hover:text-ink transition-colors">Instagram</a>
+        ·
+        <a href="https://www.linkedin.com/in/juwon-kim-1q2w3e4r/" target="_blank" rel="noopener noreferrer" class="hover:text-ink transition-colors">LinkedIn</a>
+      </p>
+      <p class="mt-8 text-[12px] text-ink-muted">&copy; {new Date().getFullYear()} Portfolio</p>
+    </footer>
+  </body>
+</html>

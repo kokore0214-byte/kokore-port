@@ -1,0 +1,364 @@
+---
+import Layout from '../layouts/Layout.astro'
+import { explorations } from '../data/projects'
+
+// tiles distributed evenly on a sphere surface (Fibonacci sphere) so rotation in
+// any direction reveals real 3D depth, not just a flat ring
+const TILE_COUNT = 16
+const SPHERE_RADIUS = 204 // 170 * 1.2
+const SIZES = [51, 39, 34, 46, 37, 31, 44, 32, 41, 36, 48, 29, 43, 37, 49, 34] // a bit smaller than before, now that the orbit itself is bigger
+
+function fibonacciSpherePoint(i: number, n: number) {
+  const golden = Math.PI * (3 - Math.sqrt(5))
+  const y = 1 - (i / (n - 1)) * 2
+  const radiusAtY = Math.sqrt(Math.max(0, 1 - y * y))
+  const theta = golden * i
+  return { x: Math.cos(theta) * radiusAtY, y, z: Math.sin(theta) * radiusAtY }
+}
+
+const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
+  const p = fibonacciSpherePoint(i, TILE_COUNT)
+  return {
+    index: i + 1,
+    x: +(p.x * SPHERE_RADIUS).toFixed(1),
+    y: +(p.y * SPHERE_RADIUS).toFixed(1),
+    z: +(p.z * SPHERE_RADIUS).toFixed(1),
+    size: SIZES[i % SIZES.length],
+  }
+})
+---
+
+<Layout title="Portfolio — Multi-Disciplinary Designer">
+  <section
+    id="hero-stage"
+    class="relative flex h-screen cursor-grab touch-none flex-col justify-between overflow-hidden px-6 py-8 select-none"
+  >
+    <div class="pointer-events-none mx-auto mb-10 flex w-full max-w-5xl flex-col gap-2 text-[13px] tracking-[-0.224px] sm:flex-row sm:items-start sm:justify-between">
+      <a href="/about" class="pointer-events-auto w-fit font-semibold hover:text-accent transition-colors">KIM JUWON</a>
+      <span class="font-semibold">AUTHOR'S NOTE</span>
+    </div>
+
+    <div class="relative mx-auto w-full max-w-5xl flex-1 isolate">
+      <div id="sphere" class="absolute left-1/2 top-1/2 h-[552px] w-[552px] -translate-x-1/2 -translate-y-1/2">
+        {sphereTiles.map((t) => (
+          <div
+            class="sphere-tile absolute left-1/2 top-1/2 cursor-pointer rounded-[8px]"
+            style={`width:${t.size}px;height:${t.size}px`}
+            data-index={t.index}
+            data-size={t.size}
+            data-x={t.x}
+            data-y={t.y}
+            data-z={t.z}
+          >
+          </div>
+        ))}
+        <div
+          id="tile-detail"
+          class="absolute left-1/2 top-1/2 z-[3100] w-48 -translate-x-1/2 translate-y-[150px] cursor-pointer text-center text-[14px] text-ink-muted opacity-0 transition-opacity duration-300"
+        >
+          테스트 1
+        </div>
+      </div>
+    </div>
+
+    <p id="work-caption" class="pointer-events-none mx-auto mb-[220px] text-[12px] tracking-[-0.12px] text-ink-muted opacity-0 transition-opacity duration-200">&nbsp;</p>
+  </section>
+
+  <script>
+    type Tile = { el: HTMLElement; index: number; size: number; x0: number; y0: number; z0: number }
+    // row-major 3x3 rotation matrix — lets the sphere accumulate rotation around whatever axis
+    // a given input implies (arcball-style for drag), instead of two fixed world axes
+    type Mat3 = [number, number, number, number, number, number, number, number, number]
+
+    function mat3FromAxisAngle(ax: number, ay: number, az: number, angle: number): Mat3 {
+      const len = Math.hypot(ax, ay, az)
+      if (len < 1e-9) return [1, 0, 0, 0, 1, 0, 0, 0, 1]
+      const x = ax / len,
+        y = ay / len,
+        z = az / len
+      const c = Math.cos(angle)
+      const s = Math.sin(angle)
+      const t = 1 - c
+      return [
+        t * x * x + c,
+        t * x * y - s * z,
+        t * x * z + s * y,
+        t * x * y + s * z,
+        t * y * y + c,
+        t * y * z - s * x,
+        t * x * z - s * y,
+        t * y * z + s * x,
+        t * z * z + c,
+      ]
+    }
+
+    function mat3Multiply(a: Mat3, b: Mat3): Mat3 {
+      const r = new Array(9) as Mat3
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          r[i * 3 + j] = a[i * 3 + 0] * b[0 * 3 + j] + a[i * 3 + 1] * b[1 * 3 + j] + a[i * 3 + 2] * b[2 * 3 + j]
+        }
+      }
+      return r
+    }
+
+    function mat3ApplyVec(m: Mat3, x: number, y: number, z: number): [number, number, number] {
+      return [m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, m[6] * x + m[7] * y + m[8] * z]
+    }
+
+    const TILE_COLOR_NEAR = [30, 30, 33]
+    const TILE_COLOR_FAR = [195, 195, 201]
+    const CLICK_THRESHOLD = 6
+    const EXPANDED_SIZE = 220
+    const COLLAPSE_MS = 460
+
+    function initSphere() {
+      // the sphere itself only anchors tile positions; pointer/wheel input is captured by the
+      // whole hero stage (everything below the site nav) so the interactive area isn't limited
+      // to the small tile cluster
+      const stage = document.getElementById('hero-stage')
+      const sphereEl = document.getElementById('sphere')
+      const captionEl = document.getElementById('work-caption')
+      const detailEl = document.getElementById('tile-detail')
+      if (!stage || !sphereEl || !captionEl || !detailEl) return
+
+      // guards against a second render loop stacking on top of a still-running one (e.g. if
+      // astro:page-load ever fires twice for the same DOM) — competing loops fighting over the
+      // same tiles is what stutter/jitter like this usually is
+      const prevRafId = (stage as any).__sphereRafId
+      if (prevRafId) cancelAnimationFrame(prevRafId)
+
+      const tiles: Tile[] = [...sphereEl.querySelectorAll<HTMLElement>('.sphere-tile')].map((el) => ({
+        el,
+        index: Number(el.dataset.index),
+        size: Number(el.dataset.size),
+        x0: parseFloat(el.dataset.x || '0'),
+        y0: parseFloat(el.dataset.y || '0'),
+        z0: parseFloat(el.dataset.z || '0'),
+      }))
+      if (!tiles.length) return
+
+      let hoveredIndex: number | null = null
+      function renderCaption() {
+        // never truly empty — an empty <p> can get a slightly different line-box height than
+        // one with text, and since this sits in the hero's flex-col layout, that nudges the
+        // sphere's container size (and therefore every tile's pixel position) on every hover
+        captionEl!.textContent = hoveredIndex ? `Selected work — ${String(hoveredIndex).padStart(2, '0')}` : ' '
+        captionEl!.classList.toggle('opacity-0', hoveredIndex === null)
+      }
+
+      for (const t of tiles) {
+        t.el.addEventListener('pointerenter', () => {
+          hoveredIndex = t.index
+          renderCaption()
+        })
+        t.el.addEventListener('pointerleave', () => {
+          hoveredIndex = null
+          renderCaption()
+        })
+      }
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      const FOCAL = 504 // 420 * 1.2, scaled with SPHERE_RADIUS to keep the same perspective feel
+      const SPHERE_RADIUS = 204 // 170 * 1.2
+      const IDLE_YAW_SPEED = reduceMotion ? 0 : 0.0009 // rad/frame baseline spin, left-right only, kept slow
+      const SCROLL_SENSITIVITY = 0.00035
+      const DRAG_SENSITIVITY = 0.006
+      const MAX_YAW_SPEED = 0.08
+      // yawVelocity chases yawVelocityTarget (smooth accel), and the target itself eases back
+      // toward the idle baseline over time (smooth decel) — two stages instead of one so a wheel
+      // flick ramps up instead of jumping straight to speed, and lets go gently instead of
+      // snapping back to idle
+      const YAW_ACCEL = 0.08
+      const YAW_TARGET_DECAY = 0.012
+      const DRAG_MOMENTUM_FRICTION = 0.94
+      const DRAG_VELOCITY_SMOOTHING = 0.35 // EMA factor so release momentum reflects recent motion, not one jittery frame
+
+      // accumulated orientation, started with a slight tilt so it reads as a sphere, not a flat
+      // disc. Scroll always spins it around the fixed world Y axis (left-right, whatever the
+      // current tilt); drag spins it around a fresh axis, perpendicular to that drag's direction,
+      // computed on the fly — true arcball/trackball behavior instead of two fixed axes
+      let orientation: Mat3 = mat3FromAxisAngle(1, 0, 0, 0.18)
+      let yawVelocity = 0
+      let yawVelocityTarget = 0
+      let dragMomentumAxis: [number, number, number] = [0, 1, 0]
+      let dragMomentumSpeed = 0
+      let dragging = false
+      let hasDragged = false
+      let lastX = 0
+      let lastY = 0
+      let downX = 0
+      let downY = 0
+      let rafId = 0
+      let expandedTile: Tile | null = null
+
+      function scheduleFrame() {
+        rafId = requestAnimationFrame(frame)
+        ;(stage as any).__sphereRafId = rafId
+      }
+
+      function project(tile: Tile) {
+        const [x1, y2, z2] = mat3ApplyVec(orientation, tile.x0, tile.y0, tile.z0)
+        const scale = FOCAL / (FOCAL - z2)
+        const depth = Math.min(1, Math.max(0, (z2 + SPHERE_RADIUS) / (SPHERE_RADIUS * 2))) // 0 far .. 1 near
+        const opacity = 0.32 + 0.68 * depth
+        const r = Math.round(TILE_COLOR_FAR[0] + (TILE_COLOR_NEAR[0] - TILE_COLOR_FAR[0]) * depth)
+        const g = Math.round(TILE_COLOR_FAR[1] + (TILE_COLOR_NEAR[1] - TILE_COLOR_FAR[1]) * depth)
+        const b = Math.round(TILE_COLOR_FAR[2] + (TILE_COLOR_NEAR[2] - TILE_COLOR_FAR[2]) * depth)
+        return { x1, y2, scale, opacity, r, g, b, z2 }
+      }
+
+      // ponytail: no filter:blur() here — animating blur on ~16 elements every frame was the
+      // main cause of the hover/click jank (each blurred, semi-transparent layer needs its own
+      // expensive compositing pass, recomputed every frame as the radius changes). Depth still
+      // reads clearly from scale + opacity + color alone; revisit with a throttled/quantized
+      // blur only if the extra softness turns out to matter.
+      function applyProjection(tile: Tile) {
+        const p = project(tile)
+        tile.el.style.transform = `translate3d(${p.x1 * p.scale}px, ${p.y2 * p.scale}px, 0) translate(-50%, -50%) scale(${p.scale})`
+        tile.el.style.opacity = String(p.opacity)
+        tile.el.style.backgroundColor = `rgb(${p.r}, ${p.g}, ${p.b})`
+        tile.el.style.zIndex = String(Math.round(p.z2 + 1000))
+      }
+
+      function render() {
+        for (const t of tiles) {
+          if (t === expandedTile) continue
+          applyProjection(t)
+        }
+      }
+
+      function frame() {
+        if (!dragging) {
+          // idle baseline + scroll: always the fixed world Y axis, so it always reads as a flat
+          // left-right spin no matter how the sphere is currently tilted
+          yawVelocityTarget += (IDLE_YAW_SPEED - yawVelocityTarget) * YAW_TARGET_DECAY
+          yawVelocity += (yawVelocityTarget - yawVelocity) * YAW_ACCEL
+          if (Math.abs(yawVelocity) > 1e-6) orientation = mat3Multiply(mat3FromAxisAngle(0, 1, 0, yawVelocity), orientation)
+
+          // leftover drag momentum: keeps spinning around whatever axis the flick implied, fading out
+          dragMomentumSpeed *= DRAG_MOMENTUM_FRICTION
+          if (Math.abs(dragMomentumSpeed) > 1e-5) {
+            orientation = mat3Multiply(mat3FromAxisAngle(dragMomentumAxis[0], dragMomentumAxis[1], dragMomentumAxis[2], dragMomentumSpeed), orientation)
+          }
+        }
+        render()
+        scheduleFrame()
+      }
+
+      function expandTile(tile: Tile) {
+        expandedTile = tile
+        cancelAnimationFrame(rafId)
+        // ponytail: scale via transform instead of animating width/height — width/height are
+        // layout properties, so transitioning them forces a reflow every frame; transform+opacity
+        // stay on the compositor thread, which is what was actually causing the click stutter
+        tile.el.style.transition = 'transform 450ms cubic-bezier(0.22,1,0.36,1), background-color 300ms, opacity 300ms'
+        tile.el.style.opacity = '1'
+        tile.el.style.backgroundColor = `rgb(${TILE_COLOR_NEAR.join(', ')})`
+        tile.el.style.zIndex = '3000'
+        tile.el.style.transform = `translate(-50%, -50%) scale(${EXPANDED_SIZE / tile.size})`
+        window.setTimeout(() => {
+          detailEl!.style.opacity = '1'
+        }, 250)
+      }
+
+      function collapseTile() {
+        if (!expandedTile) return
+        const tile = expandedTile
+        expandedTile = null
+        detailEl!.style.opacity = '0'
+        applyProjection(tile) // animates back to its live sphere position via the transition already set
+        window.setTimeout(() => {
+          tile.el.style.transition = ''
+          scheduleFrame()
+        }, COLLAPSE_MS)
+      }
+
+      function handleClick(x: number, y: number) {
+        if (expandedTile) {
+          collapseTile()
+          return
+        }
+        const el = document.elementFromPoint(x, y) as HTMLElement | null
+        const tileEl = el?.closest('.sphere-tile') as HTMLElement | null
+        if (!tileEl) return
+        const tile = tiles.find((t) => t.el === tileEl)
+        if (tile) expandTile(tile)
+      }
+
+      stage.addEventListener(
+        'wheel',
+        (e) => {
+          if (expandedTile) return
+          e.preventDefault()
+          // nudge the target, not the rendered velocity — frame() eases yawVelocity toward it
+          yawVelocityTarget = Math.max(-MAX_YAW_SPEED, Math.min(MAX_YAW_SPEED, yawVelocityTarget + e.deltaY * SCROLL_SENSITIVITY))
+        },
+        { passive: false },
+      )
+
+      stage.addEventListener('pointerdown', (e) => {
+        dragging = true
+        hasDragged = false
+        lastX = e.clientX
+        lastY = e.clientY
+        downX = e.clientX
+        downY = e.clientY
+        stage.setPointerCapture(e.pointerId)
+        stage.classList.add('cursor-grabbing')
+      })
+
+      stage.addEventListener('pointermove', (e) => {
+        if (!dragging || expandedTile) return
+        // a click is only "not a drag" if the pointer never moved far from where it went down —
+        // checking net displacement at pointerup alone missed wiggly drags that end near their
+        // start, which is exactly what rotating the sphere back and forth while looking at it
+        // tends to do, and used to misfire as a click and snap a tile to center
+        if (Math.hypot(e.clientX - downX, e.clientY - downY) >= CLICK_THRESHOLD) hasDragged = true
+        const dx = e.clientX - lastX
+        const dy = e.clientY - lastY
+        lastX = e.clientX
+        lastY = e.clientY
+        const dist = Math.hypot(dx, dy)
+        if (dist > 0) {
+          // arcball: rotate around whatever axis is perpendicular to *this* drag's direction —
+          // dragging right spins it around the vertical axis, dragging down around the
+          // horizontal axis, and anything diagonal around the matching axis in between, so the
+          // surface under the cursor keeps following the cursor no matter which way you drag
+          const axisX = -dy / dist
+          const axisY = dx / dist
+          const angle = dist * DRAG_SENSITIVITY
+          orientation = mat3Multiply(mat3FromAxisAngle(axisX, axisY, 0, angle), orientation)
+          // smoothed (EMA) so release momentum reflects the recent gesture, not one jittery frame
+          dragMomentumAxis[0] += (axisX - dragMomentumAxis[0]) * DRAG_VELOCITY_SMOOTHING
+          dragMomentumAxis[1] += (axisY - dragMomentumAxis[1]) * DRAG_VELOCITY_SMOOTHING
+          dragMomentumSpeed += (angle - dragMomentumSpeed) * DRAG_VELOCITY_SMOOTHING
+        }
+      })
+
+      stage.addEventListener('pointerup', (e) => {
+        dragging = false
+        stage.classList.remove('cursor-grabbing')
+        if (!hasDragged) handleClick(e.clientX, e.clientY)
+      })
+      stage.addEventListener('pointercancel', () => {
+        dragging = false
+        stage.classList.remove('cursor-grabbing')
+      })
+
+      render()
+      scheduleFrame()
+    }
+
+    document.addEventListener('astro:page-load', initSphere)
+  </script>
+
+  <section class="mx-auto max-w-5xl px-6 pb-24">
+    <h2 class="text-[14px] font-semibold tracking-[-0.224px] text-ink-muted">Explorations</h2>
+    <ul class="mt-8 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
+      {explorations.map((e) => (
+        <li class="text-[14px] text-ink-muted transition-colors hover:text-ink">{e}</li>
+      ))}
+    </ul>
+  </section>
+</Layout>
