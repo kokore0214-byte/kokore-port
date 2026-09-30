@@ -18,7 +18,11 @@ import { projects } from '../../data/projects'
             Coming Soon
           </span>
         )}
-        <div class="aspect-[4/5] w-full bg-parchment transition-colors group-hover:bg-hairline/50"></div>
+        {p.image ? (
+          <img src={p.image} alt={p.title} class="aspect-[4/5] w-full object-cover" loading="lazy" />
+        ) : (
+          <div class="aspect-[4/5] w-full bg-parchment transition-colors group-hover:bg-hairline/50"></div>
+        )}
         <div class="px-1 py-4">
           <h2 class="text-[14px] font-semibold tracking-[-0.224px]">{p.title}</h2>
           <p class="mt-1 text-[12px] text-ink-muted">{p.tags.join(', ')}</p>

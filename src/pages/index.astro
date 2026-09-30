@@ -1,12 +1,20 @@
 ---
 import Layout from '../layouts/Layout.astro'
-import { explorations } from '../data/projects'
+import { explorations, projects } from '../data/projects'
 
 // tiles distributed evenly on a sphere surface (Fibonacci sphere) so rotation in
 // any direction reveals real 3D depth, not just a flat ring
 const TILE_COUNT = 16
-const SPHERE_RADIUS = 204 // 170 * 1.2
-const SIZES = [51, 39, 34, 46, 37, 31, 44, 32, 41, 36, 48, 29, 43, 37, 49, 34] // a bit smaller than before, now that the orbit itself is bigger
+const SPHERE_RADIUS = 255 // 204 * 1.25 — scaled up again, screen felt too small
+const SIZES = [64, 49, 43, 58, 46, 39, 55, 40, 51, 45, 60, 36, 54, 46, 61, 43] // previous SIZES * 1.25
+
+// projects opt into a specific tile via `tileIndex` — everything else stays a
+// plain color tile until its own project entry claims a slot
+const tileContent = new Map(
+  projects
+    .filter((p) => p.tileIndex && p.image)
+    .map((p) => [p.tileIndex as number, { image: p.image as string, aspect: p.imageAspect ?? 1, title: p.title, href: `/projects/${p.slug}` }]),
+)
 
 function fibonacciSpherePoint(i: number, n: number) {
   const golden = Math.PI * (3 - Math.sqrt(5))
@@ -18,12 +26,26 @@ function fibonacciSpherePoint(i: number, n: number) {
 
 const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
   const p = fibonacciSpherePoint(i, TILE_COUNT)
+  const index = i + 1
+  const content = tileContent.get(index)
+  const baseSize = SIZES[i % SIZES.length]
+  // keep roughly the same visual footprint as a square tile of `baseSize`
+  // (same area) instead of stretching one side, so a wide image doesn't
+  // suddenly dwarf its neighbors on the sphere
+  const aspect = content?.aspect ?? 1
+  const tileW = Math.round(baseSize * Math.sqrt(aspect))
+  const tileH = Math.round(baseSize / Math.sqrt(aspect))
   return {
-    index: i + 1,
+    index,
     x: +(p.x * SPHERE_RADIUS).toFixed(1),
     y: +(p.y * SPHERE_RADIUS).toFixed(1),
     z: +(p.z * SPHERE_RADIUS).toFixed(1),
-    size: SIZES[i % SIZES.length],
+    size: baseSize,
+    width: tileW,
+    height: tileH,
+    image: content?.image ?? null,
+    title: content?.title ?? null,
+    href: content?.href ?? null,
   }
 })
 ---
@@ -39,33 +61,36 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
     </div>
 
     <div class="relative mx-auto w-full max-w-5xl flex-1 isolate">
-      <div id="sphere" class="absolute left-1/2 top-1/2 h-[552px] w-[552px] -translate-x-1/2 -translate-y-1/2">
+      <div id="sphere" class="absolute left-1/2 top-1/2 h-[690px] w-[690px] -translate-x-1/2 -translate-y-1/2">
         {sphereTiles.map((t) => (
           <div
-            class="sphere-tile absolute left-1/2 top-1/2 cursor-pointer rounded-[8px]"
-            style={`width:${t.size}px;height:${t.size}px`}
+            class="sphere-tile absolute left-1/2 top-1/2 cursor-pointer rounded-[3px] bg-cover bg-center"
+            style={`width:${t.width}px;height:${t.height}px${t.image ? `;background-image:url(${t.image})` : ''}`}
             data-index={t.index}
             data-size={t.size}
             data-x={t.x}
             data-y={t.y}
             data-z={t.z}
+            data-has-image={t.image ? 'true' : 'false'}
+            data-title={t.title ?? ''}
+            data-href={t.href ?? ''}
           >
           </div>
         ))}
-        <div
-          id="tile-detail"
-          class="absolute left-1/2 top-1/2 z-[3100] w-48 -translate-x-1/2 translate-y-[150px] cursor-pointer text-center text-[14px] text-ink-muted opacity-0 transition-opacity duration-300"
+        <p
+          id="work-caption"
+          class="pointer-events-none absolute left-1/2 top-full mt-6 w-max -translate-x-1/2 text-center text-[12px] tracking-[-0.12px] text-ink-muted opacity-0 transition-opacity duration-200"
         >
-          테스트 1
-        </div>
+          &nbsp;
+        </p>
       </div>
     </div>
-
-    <p id="work-caption" class="pointer-events-none mx-auto mb-[220px] text-[12px] tracking-[-0.12px] text-ink-muted opacity-0 transition-opacity duration-200">&nbsp;</p>
   </section>
 
   <script>
-    type Tile = { el: HTMLElement; index: number; size: number; x0: number; y0: number; z0: number }
+    import { navigate } from 'astro:transitions/client'
+
+    type Tile = { el: HTMLElement; index: number; size: number; x0: number; y0: number; z0: number; hasImage: boolean; title: string; href: string }
     // row-major 3x3 rotation matrix — lets the sphere accumulate rotation around whatever axis
     // a given input implies (arcball-style for drag), instead of two fixed world axes
     type Mat3 = [number, number, number, number, number, number, number, number, number]
@@ -119,8 +144,7 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
       const stage = document.getElementById('hero-stage')
       const sphereEl = document.getElementById('sphere')
       const captionEl = document.getElementById('work-caption')
-      const detailEl = document.getElementById('tile-detail')
-      if (!stage || !sphereEl || !captionEl || !detailEl) return
+      if (!stage || !sphereEl || !captionEl) return
 
       // guards against a second render loop stacking on top of a still-running one (e.g. if
       // astro:page-load ever fires twice for the same DOM) — competing loops fighting over the
@@ -135,32 +159,35 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
         x0: parseFloat(el.dataset.x || '0'),
         y0: parseFloat(el.dataset.y || '0'),
         z0: parseFloat(el.dataset.z || '0'),
+        hasImage: el.dataset.hasImage === 'true',
+        title: el.dataset.title || '',
+        href: el.dataset.href || '',
       }))
       if (!tiles.length) return
 
-      let hoveredIndex: number | null = null
+      let hoveredTile: Tile | null = null
       function renderCaption() {
         // never truly empty — an empty <p> can get a slightly different line-box height than
         // one with text, and since this sits in the hero's flex-col layout, that nudges the
         // sphere's container size (and therefore every tile's pixel position) on every hover
-        captionEl!.textContent = hoveredIndex ? `Selected work — ${String(hoveredIndex).padStart(2, '0')}` : ' '
-        captionEl!.classList.toggle('opacity-0', hoveredIndex === null)
+        captionEl!.textContent = hoveredTile ? hoveredTile.title || `Selected work — ${String(hoveredTile.index).padStart(2, '0')}` : ' '
+        captionEl!.classList.toggle('opacity-0', hoveredTile === null)
       }
 
       for (const t of tiles) {
         t.el.addEventListener('pointerenter', () => {
-          hoveredIndex = t.index
+          hoveredTile = t
           renderCaption()
         })
         t.el.addEventListener('pointerleave', () => {
-          hoveredIndex = null
+          hoveredTile = null
           renderCaption()
         })
       }
 
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      const FOCAL = 504 // 420 * 1.2, scaled with SPHERE_RADIUS to keep the same perspective feel
-      const SPHERE_RADIUS = 204 // 170 * 1.2
+      const FOCAL = 630 // 504 * 1.25, scaled with SPHERE_RADIUS to keep the same perspective feel
+      const SPHERE_RADIUS = 255 // 204 * 1.25
       const IDLE_YAW_SPEED = reduceMotion ? 0 : 0.0009 // rad/frame baseline spin, left-right only, kept slow
       const SCROLL_SENSITIVITY = 0.00035
       const DRAG_SENSITIVITY = 0.006
@@ -201,7 +228,9 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
         const [x1, y2, z2] = mat3ApplyVec(orientation, tile.x0, tile.y0, tile.z0)
         const scale = FOCAL / (FOCAL - z2)
         const depth = Math.min(1, Math.max(0, (z2 + SPHERE_RADIUS) / (SPHERE_RADIUS * 2))) // 0 far .. 1 near
-        const opacity = 0.32 + 0.68 * depth
+        // photo tiles: fully crisp (opacity 1) across the whole near-facing hemisphere instead of
+        // only at the single closest point — a photo fading in and out read as "blurry", not "3D"
+        const opacity = tile.hasImage ? Math.min(1, 0.4 + depth / 0.6) : 0.32 + 0.68 * depth
         const r = Math.round(TILE_COLOR_FAR[0] + (TILE_COLOR_NEAR[0] - TILE_COLOR_FAR[0]) * depth)
         const g = Math.round(TILE_COLOR_FAR[1] + (TILE_COLOR_NEAR[1] - TILE_COLOR_FAR[1]) * depth)
         const b = Math.round(TILE_COLOR_FAR[2] + (TILE_COLOR_NEAR[2] - TILE_COLOR_FAR[2]) * depth)
@@ -217,7 +246,7 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
         const p = project(tile)
         tile.el.style.transform = `translate3d(${p.x1 * p.scale}px, ${p.y2 * p.scale}px, 0) translate(-50%, -50%) scale(${p.scale})`
         tile.el.style.opacity = String(p.opacity)
-        tile.el.style.backgroundColor = `rgb(${p.r}, ${p.g}, ${p.b})`
+        if (!tile.hasImage) tile.el.style.backgroundColor = `rgb(${p.r}, ${p.g}, ${p.b})`
         tile.el.style.zIndex = String(Math.round(p.z2 + 1000))
       }
 
@@ -254,19 +283,15 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
         // stay on the compositor thread, which is what was actually causing the click stutter
         tile.el.style.transition = 'transform 450ms cubic-bezier(0.22,1,0.36,1), background-color 300ms, opacity 300ms'
         tile.el.style.opacity = '1'
-        tile.el.style.backgroundColor = `rgb(${TILE_COLOR_NEAR.join(', ')})`
+        if (!tile.hasImage) tile.el.style.backgroundColor = `rgb(${TILE_COLOR_NEAR.join(', ')})`
         tile.el.style.zIndex = '3000'
         tile.el.style.transform = `translate(-50%, -50%) scale(${EXPANDED_SIZE / tile.size})`
-        window.setTimeout(() => {
-          detailEl!.style.opacity = '1'
-        }, 250)
       }
 
       function collapseTile() {
         if (!expandedTile) return
         const tile = expandedTile
         expandedTile = null
-        detailEl!.style.opacity = '0'
         applyProjection(tile) // animates back to its live sphere position via the transition already set
         window.setTimeout(() => {
           tile.el.style.transition = ''
@@ -283,7 +308,14 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
         const tileEl = el?.closest('.sphere-tile') as HTMLElement | null
         if (!tileEl) return
         const tile = tiles.find((t) => t.el === tileEl)
-        if (tile) expandTile(tile)
+        if (!tile) return
+        // tiles wired to a real project go straight there (via the SPA router, so the
+        // View Transition still plays); everything else keeps the old expand-in-place preview
+        if (tile.href) {
+          navigate(tile.href)
+          return
+        }
+        expandTile(tile)
       }
 
       stage.addEventListener(

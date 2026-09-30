@@ -20,8 +20,41 @@ const { project } = Astro.props
   </section>
 
   <section class="mx-auto max-w-5xl px-6 pb-16">
-    <div class="aspect-[16/9] w-full rounded-[18px] bg-parchment"></div>
+    {project.image ? (
+      <img src={project.image} alt={project.title} class="w-full" />
+    ) : (
+      <div class="aspect-[16/9] w-full bg-parchment"></div>
+    )}
   </section>
+
+  {project.caseStudy && (
+    <section class="mx-auto max-w-3xl px-6 pb-24">
+      <div class="flex flex-col gap-16">
+        {project.caseStudy.map((block) => {
+          if (block.type === 'heading') {
+            return (
+              <div>
+                <h2 class="text-[28px] font-semibold leading-[1.14] tracking-[0]">{block.en}</h2>
+                {block.ja && <p class="mt-2 text-[14px] leading-[1.7] text-ink-muted">{block.ja}</p>}
+              </div>
+            )
+          }
+          if (block.type === 'spec') {
+            return <p class="text-[12px] tracking-[-0.12px] text-ink-muted">{block.en}</p>
+          }
+          if (block.type === 'image') {
+            return <img src={block.src} alt={block.alt} class="w-full" loading="lazy" />
+          }
+          return (
+            <div class="grid gap-8 sm:grid-cols-2">
+              <p class="whitespace-pre-line text-[17px] leading-[1.47] tracking-[-0.374px]">{block.en}</p>
+              {block.ja && <p class="whitespace-pre-line text-[14px] leading-[1.7] text-ink-muted">{block.ja}</p>}
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )}
 
   <section class="mx-auto max-w-5xl px-6 pb-24">
     <a
