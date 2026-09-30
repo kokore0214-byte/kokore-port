@@ -309,13 +309,12 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
         if (!tileEl) return
         const tile = tiles.find((t) => t.el === tileEl)
         if (!tile) return
-        // tiles wired to a real project go straight there (via the SPA router, so the
-        // View Transition still plays); everything else keeps the old expand-in-place preview
-        if (tile.href) {
-          navigate(tile.href)
-          return
-        }
+        // tiles wired to a real project play the same expand-to-center animation first,
+        // then hand off to the SPA router once it's finished (so the View Transition still plays)
         expandTile(tile)
+        if (tile.href) {
+          window.setTimeout(() => navigate(tile.href), 450)
+        }
       }
 
       stage.addEventListener(

@@ -19,16 +19,8 @@ const { project } = Astro.props
     </p>
   </section>
 
-  <section class="mx-auto max-w-5xl px-6 pb-16">
-    {project.image ? (
-      <img src={project.image} alt={project.title} class="w-full" />
-    ) : (
-      <div class="aspect-[16/9] w-full bg-parchment"></div>
-    )}
-  </section>
-
   {project.caseStudy && (
-    <section class="mx-auto max-w-3xl px-6 pb-24">
+    <section class="mx-auto max-w-[1536px] px-6 pb-24">
       <div class="flex flex-col gap-16">
         {project.caseStudy.map((block) => {
           if (block.type === 'heading') {
