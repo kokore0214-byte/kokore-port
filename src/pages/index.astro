@@ -377,8 +377,92 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
         stage.classList.remove('cursor-grabbing')
       })
 
-      render()
-      scheduleFrame()
+      // one-time entrance choreography: tiles start as a flat horizontal band, curl into a
+      // spinning cylinder that speeds up, collapse inward to a single point, then burst
+      // outward into their real sphere positions — purely by driving tile.x0/y0/z0 each
+      // frame through the same project()/applyProjection() pipeline the idle loop uses, so
+      // handoff to the normal frame() loop at the end is just "leave x0/y0/z0 where they are"
+      function runIntro() {
+        const n = tiles.length
+        const easeInQuad = (p: number) => p * p
+        const easeInCubic = (p: number) => p * p * p
+        const easeOutCubic = (p: number) => 1 - Math.pow(1 - p, 3)
+
+        const BAND_WIDTH = 700
+        const CYL_RADIUS = 240
+        const CYL_HEIGHT = 140
+        const SPIN_TOTAL_RAD = Math.PI * 5
+        const SHAPE_MS = 900
+        const CONVERGE_MS = 900
+        const SPREAD_MS = 900
+
+        const bandX = tiles.map((_, i) => (n <= 1 ? 0 : (i / (n - 1) - 0.5) * BAND_WIDTH))
+        const cylY = tiles.map((_, i) => (n <= 1 ? 0 : (i / (n - 1) - 0.5) * CYL_HEIGHT))
+        const baseAngle = tiles.map((_, i) => (i / n) * Math.PI * 2)
+        const finalPos: [number, number, number][] = tiles.map((t) => [t.x0, t.y0, t.z0])
+
+        const start = performance.now()
+
+        function tick(now: number) {
+          const elapsed = now - start
+          if (elapsed < SHAPE_MS) {
+            // band curls into a cylinder while spin ramps up from a standstill
+            const p = easeInQuad(elapsed / SHAPE_MS)
+            const spinAngle = SPIN_TOTAL_RAD * 0.35 * p
+            for (let i = 0; i < n; i++) {
+              const tile = tiles[i]
+              const angle = baseAngle[i] + spinAngle
+              const cx = Math.cos(angle) * CYL_RADIUS
+              const cz = Math.sin(angle) * CYL_RADIUS
+              tile.x0 = bandX[i] + (cx - bandX[i]) * p
+              tile.y0 = cylY[i] * p
+              tile.z0 = cz * p
+            }
+          } else if (elapsed < SHAPE_MS + CONVERGE_MS) {
+            // cylinder keeps spinning fast while its radius shrinks to a single point
+            const cp = easeInCubic((elapsed - SHAPE_MS) / CONVERGE_MS)
+            const spinAngle = SPIN_TOTAL_RAD * (0.35 + 0.65 * cp)
+            const radius = CYL_RADIUS * (1 - cp)
+            for (let i = 0; i < n; i++) {
+              const tile = tiles[i]
+              const angle = baseAngle[i] + spinAngle
+              tile.x0 = Math.cos(angle) * radius
+              tile.y0 = cylY[i] * (1 - cp)
+              tile.z0 = Math.sin(angle) * radius
+            }
+          } else if (elapsed < SHAPE_MS + CONVERGE_MS + SPREAD_MS) {
+            // burst outward from the center point into each tile's real sphere position
+            const sp = easeOutCubic((elapsed - SHAPE_MS - CONVERGE_MS) / SPREAD_MS)
+            for (let i = 0; i < n; i++) {
+              const tile = tiles[i]
+              const [fx, fy, fz] = finalPos[i]
+              tile.x0 = fx * sp
+              tile.y0 = fy * sp
+              tile.z0 = fz * sp
+            }
+          } else {
+            for (let i = 0; i < n; i++) {
+              ;[tiles[i].x0, tiles[i].y0, tiles[i].z0] = finalPos[i]
+            }
+            render()
+            scheduleFrame()
+            return
+          }
+          render()
+          const id = requestAnimationFrame(tick)
+          ;(stage as any).__sphereRafId = id
+        }
+
+        const id = requestAnimationFrame(tick)
+        ;(stage as any).__sphereRafId = id
+      }
+
+      if (reduceMotion) {
+        render()
+        scheduleFrame()
+      } else {
+        runIntro()
+      }
     }
 
     document.addEventListener('astro:page-load', initSphere)
