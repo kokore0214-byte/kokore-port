@@ -9,6 +9,7 @@ export type Project = {
   title: string
   tags: string[]
   category: 1 | 2 | 3 | 4 // 1 제품 · 2 포토그래피 · 3 비주얼 · 4 AI
+  role?: string // 팀 프로젝트에서 본인이 맡은 파트. 영문, "~ Part" 형식. 프로젝트명 바로 아래 표시
   description: string
   image?: string // 대표 이미지 — 홈 타일 / 프로젝트 그리드 / 상세 페이지 히어로에 사용
   imageAspect?: number // image의 원본 가로/세로 비율 (예: 16:9 → 16/9). 지정 시 홈 타일이 이 비율의 박스로 렌더링되어 크롭 없이 표시됨
@@ -105,7 +106,8 @@ export const projects: Project[] = [
     image: '/images/zero-won-sea/page-01.jpg',
     imageAspect: 1920 / 1080,
     tileIndex: 4,
-    description: '2007년 태안 기름유출 사고 이후 지워진 노동과 관계를 다루는 팀 프로젝트 (Kim Juwon, No Yuna, Lee Yujin, Jo Seonghye). 굴 껍데기 합성 소재 책장과 반송 캠페인으로 기록되지 않은 노동의 증거를 제안한다. 본인 담당: 오브제 제작, 리서치.',
+    role: 'Object Fabrication & Research Part',
+    description: '2007년 태안 기름유출 사고 이후 지워진 노동과 관계를 다루는 팀 프로젝트 (Kim Juwon, No Yuna, Lee Yujin, Jo Seonghye). 굴 껍데기 합성 소재 책장과 반송 캠페인으로 기록되지 않은 노동의 증거를 제안한다.',
     caseStudy: [
       { type: 'image', src: '/images/zero-won-sea/page-01.jpg', alt: 'The Zero-Won Sea page 1' },
       { type: 'image', src: '/images/zero-won-sea/page-02.jpg', alt: 'The Zero-Won Sea page 2' },
