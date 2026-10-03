@@ -88,10 +88,10 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
       // Pointer-only (hover devices) — touch screens keep the plain background.
       if (matchMedia('(hover: hover)').matches) {
         type Plus = { x: number; y: number; born: number; life: number; rot: number; spin: number; arm: number; vx: number; vy: number }
-        const SPAWN_EVERY = 34 // px of cursor travel per new plus
-        const SPREAD = [14, 100] // min/max distance from the cursor a plus can appear at
-        const LIFE = [1400, 2600] // ms
-        const MAX = 45
+        const SPAWN_EVERY = 20 // px of cursor travel per new plus
+        const SPREAD = [8, 52] // min/max distance from the cursor a plus can appear at (biased toward the near end)
+        const LIFE = [900, 1600] // ms
+        const MAX = 40
         const pluses: Plus[] = []
         let lx = 0, ly = 0, travelled = 0, seen = false
         let blue = 0 // grey→blue mix 0..1
@@ -123,7 +123,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
 
         const spawn = (cx: number, cy: number) => {
           const ang = rand(0, Math.PI * 2)
-          const dist = rand(SPREAD[0], SPREAD[1])
+          const dist = SPREAD[0] + (SPREAD[1] - SPREAD[0]) * Math.pow(Math.random(), 1.8)
           pluses.push({
             x: cx + Math.cos(ang) * dist,
             y: cy + Math.sin(ang) * dist,
@@ -132,8 +132,8 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
             rot: rand(0, Math.PI),
             spin: rand(0.25, 0.7) * (Math.random() < 0.5 ? -1 : 1), // rad/s — slow
             arm: rand(3.5, 7),
-            vx: rand(-6, 6), // gentle drift, px/s
-            vy: rand(-10, -2), // tends to float upward
+            vx: rand(-3, 3), // barely drifts, px/s
+            vy: rand(-5, -1), // tiny upward float
           })
           if (pluses.length > MAX) pluses.shift()
         }
