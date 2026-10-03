@@ -13,6 +13,8 @@ export type Project = {
   description: string
   image?: string // 대표 이미지 — 홈 타일 / 프로젝트 그리드 / 상세 페이지 히어로에 사용
   imageAspect?: number // image의 원본 가로/세로 비율 (예: 16:9 → 16/9). 지정 시 홈 타일이 이 비율의 박스로 렌더링되어 크롭 없이 표시됨
+  tileImage?: string // 홈 구체 타일 전용 이미지 (없으면 image 사용)
+  tileImageAspect?: number // tileImage의 가로/세로 비율
   tileIndex?: number // 홈 히어로 구체의 어느 타일(1~16)에 이 프로젝트를 노출할지
   comingSoon?: boolean
   layout?: 'cylinder' // 'cylinder' = caseStudy 이미지를 세로 스택 대신 가로로 도는 원기둥 갤러리로 표시
@@ -22,45 +24,10 @@ export type Project = {
 export const projects: Project[] = [
   {
     slug: 'product-one',
-    title: 'Product Project',
+    title: 'Product Project - 01',
     tags: ['Product Design', 'Prototyping'],
     category: 1,
     description: '제품 디자인 프로젝트 자리표시자 설명입니다. 실제 콘텐츠로 교체 예정입니다.',
-  },
-  {
-    slug: 'photography',
-    title: 'Photography - 05',
-    tags: ['Photography', 'Light & Shadow', 'Color Grading'],
-    category: 2,
-    layout: 'cylinder',
-    image: '/images/photography/cover.jpg',
-    imageAspect: 16 / 9,
-    description: '봄과 여름 사이, 해가 저물기 전 따뜻한 빛과 그림자가 교차하는 순간을 담은 사진 연작. 주차금지 표지에 맺힌 반사광, 두 벽 사이에 녹슨 물건, 흰 울타리에 기댄 나무막대처럼 프레임 속 프레임과 빛의 흐름이 겹치는 장면을 따라갔다. 따뜻한 색온도와 마스크 보정으로 피사체가 빛에 드러나는 형태를 살리고, 초여름의 온기와 색감을 전한다.',
-    caseStudy: [
-      { type: 'image', src: '/images/photography/01.jpg', alt: 'Photograph 1' },
-      { type: 'image', src: '/images/photography/02.jpg', alt: 'Photograph 2' },
-      { type: 'image', src: '/images/photography/03.jpg', alt: 'Photograph 3' },
-      { type: 'image', src: '/images/photography/04.jpg', alt: 'Photograph 4' },
-      { type: 'image', src: '/images/photography/05.jpg', alt: 'Photograph 5' },
-      { type: 'image', src: '/images/photography/06.jpg', alt: 'Photograph 6' },
-      { type: 'image', src: '/images/photography/07.jpg', alt: 'Photograph 7' },
-      { type: 'image', src: '/images/photography/08.jpg', alt: 'Photograph 8' },
-      { type: 'image', src: '/images/photography/09.jpg', alt: 'Photograph 9' },
-      { type: 'image', src: '/images/photography/10.jpg', alt: 'Photograph 10' },
-      { type: 'image', src: '/images/photography/11.jpg', alt: 'Photograph 11' },
-      { type: 'image', src: '/images/photography/12.jpg', alt: 'Photograph 12' },
-      { type: 'image', src: '/images/photography/13.jpg', alt: 'Photograph 13' },
-      { type: 'image', src: '/images/photography/14.jpg', alt: 'Photograph 14' },
-      { type: 'image', src: '/images/photography/15.jpg', alt: 'Photograph 15' },
-    ],
-  },
-  {
-    slug: 'visual-one',
-    title: 'Visual Project',
-    tags: ['Visual Identity', 'Illustration'],
-    category: 3,
-    description: '비주얼 프로젝트 자리표시자 설명입니다. 실제 콘텐츠로 교체 예정입니다.',
-    comingSoon: true,
   },
   {
     slug: 'ai-one',
@@ -193,6 +160,44 @@ export const projects: Project[] = [
       { type: 'image', src: '/images/zero-won-sea/page-61.jpg', alt: 'The Zero-Won Sea page 61' },
       { type: 'image', src: '/images/zero-won-sea/page-62.jpg', alt: 'The Zero-Won Sea page 62' },
     ],
+  },
+  {
+    slug: 'photography',
+    title: 'Photography - 05',
+    tags: ['Photography', 'Light & Shadow', 'Color Grading'],
+    category: 2,
+    layout: 'cylinder',
+    image: '/images/photography/cover.jpg',
+    imageAspect: 16 / 9,
+    tileImage: '/images/photography/01.jpg',
+    tileImageAspect: 2 / 3,
+    tileIndex: 1,
+    description: '봄과 여름 사이, 해가 저물기 전 따뜻한 빛과 그림자가 교차하는 순간을 담은 사진 연작. 주차금지 표지에 맺힌 반사광, 두 벽 사이에 녹슨 물건, 흰 울타리에 기댄 나무막대처럼 프레임 속 프레임과 빛의 흐름이 겹치는 장면을 따라갔다. 따뜻한 색온도와 마스크 보정으로 피사체가 빛에 드러나는 형태를 살리고, 초여름의 온기와 색감을 전한다.',
+    caseStudy: [
+      { type: 'image', src: '/images/photography/01.jpg', alt: 'Photograph 1' },
+      { type: 'image', src: '/images/photography/02.jpg', alt: 'Photograph 2' },
+      { type: 'image', src: '/images/photography/03.jpg', alt: 'Photograph 3' },
+      { type: 'image', src: '/images/photography/04.jpg', alt: 'Photograph 4' },
+      { type: 'image', src: '/images/photography/05.jpg', alt: 'Photograph 5' },
+      { type: 'image', src: '/images/photography/06.jpg', alt: 'Photograph 6' },
+      { type: 'image', src: '/images/photography/07.jpg', alt: 'Photograph 7' },
+      { type: 'image', src: '/images/photography/08.jpg', alt: 'Photograph 8' },
+      { type: 'image', src: '/images/photography/09.jpg', alt: 'Photograph 9' },
+      { type: 'image', src: '/images/photography/10.jpg', alt: 'Photograph 10' },
+      { type: 'image', src: '/images/photography/11.jpg', alt: 'Photograph 11' },
+      { type: 'image', src: '/images/photography/12.jpg', alt: 'Photograph 12' },
+      { type: 'image', src: '/images/photography/13.jpg', alt: 'Photograph 13' },
+      { type: 'image', src: '/images/photography/14.jpg', alt: 'Photograph 14' },
+      { type: 'image', src: '/images/photography/15.jpg', alt: 'Photograph 15' },
+    ],
+  },
+  {
+    slug: 'visual-one',
+    title: 'Visual Project - 06',
+    tags: ['Visual Identity', 'Illustration'],
+    category: 3,
+    description: '비주얼 프로젝트 자리표시자 설명입니다. 실제 콘텐츠로 교체 예정입니다.',
+    comingSoon: true,
   },
 ]
 

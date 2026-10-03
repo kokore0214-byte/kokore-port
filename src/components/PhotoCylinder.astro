@@ -27,6 +27,12 @@ const n = images.length
     </div>
     <button type="button" data-next aria-label="Next photo">→</button>
   </div>
+  <div class="cyl-lb" data-lb hidden role="dialog" aria-modal="true" aria-label="Enlarged photo">
+    <button type="button" class="cyl-lb-btn cyl-lb-close" data-lb-close aria-label="Close">×</button>
+    <button type="button" class="cyl-lb-btn cyl-lb-prev" data-lb-prev aria-label="Previous photo">←</button>
+    <img data-lb-img alt="" />
+    <button type="button" class="cyl-lb-btn cyl-lb-next" data-lb-next aria-label="Next photo">→</button>
+  </div>
 </div>
 
 <style>
@@ -123,6 +129,49 @@ const n = images.length
     stroke: var(--color-accent);
     stroke-width: 4;
   }
+  .cyl-lb {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    background: rgb(255 255 255 / 0.96);
+  }
+  .cyl-lb[hidden] {
+    display: none;
+  }
+  .cyl-lb img {
+    max-width: min(92vw, 1200px);
+    max-height: 90vh;
+    object-fit: contain;
+  }
+  .cyl-lb-btn {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 9999px;
+    font-size: 20px;
+    color: var(--color-accent);
+    background: var(--color-canvas);
+    box-shadow: inset 0 0 0 1px var(--color-hairline);
+  }
+  .cyl-lb-btn:hover {
+    background: var(--color-parchment);
+  }
+  .cyl-lb-close {
+    top: 16px;
+    right: 16px;
+  }
+  .cyl-lb-prev {
+    left: 16px;
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .cyl-lb-next {
+    right: 16px;
+    top: 50%;
+    translate: 0 -50%;
+  }
 </style>
 
 <script>
@@ -211,10 +260,50 @@ const n = images.length
     stage.addEventListener('pointerup', end)
     stage.addEventListener('pointercancel', end)
 
+    const lb = root.querySelector<HTMLElement>('[data-lb]')!
+    const lbImg = root.querySelector<HTMLImageElement>('[data-lb-img]')!
+    let lbIndex = 0
+    const goto = (i: number) => {
+      const k = Math.round((-target / step - i) / n) // stay on the nearest lap
+      target = -(i + k * n) * step
+    }
+    const showLb = (i: number) => {
+      lbIndex = ((i % n) + n) % n
+      const src = cards[lbIndex].querySelector('img')!
+      lbImg.src = src.currentSrc || src.src
+      lbImg.alt = src.alt
+      goto(lbIndex) // keep the cylinder in sync for when the lightbox closes
+    }
+    const openLb = (i: number) => {
+      showLb(i)
+      lb.hidden = false
+      document.body.style.overflow = 'hidden'
+      lb.querySelector<HTMLElement>('[data-lb-close]')!.focus()
+    }
+    const closeLb = () => {
+      lb.hidden = true
+      document.body.style.overflow = ''
+      root.focus()
+    }
+    lb.querySelector('[data-lb-close]')!.addEventListener('click', closeLb)
+    lb.querySelector('[data-lb-prev]')!.addEventListener('click', () => showLb(lbIndex - 1))
+    lb.querySelector('[data-lb-next]')!.addEventListener('click', () => showLb(lbIndex + 1))
+    lb.addEventListener('click', (e) => {
+      if (e.target === lb) closeLb()
+    })
+    lbImg.addEventListener('click', closeLb)
+    document.addEventListener('keydown', (e) => {
+      if (lb.hidden || !root.isConnected) return
+      if (e.key === 'Escape') closeLb()
+      if (e.key === 'ArrowLeft') showLb(lbIndex - 1)
+      if (e.key === 'ArrowRight') showLb(lbIndex + 1)
+    })
+
     cards.forEach((c, i) =>
       c.addEventListener('click', () => {
         if (moved > 6) return
-        const cur = Math.round(-target / step)
+        const cur = ((Math.round(-target / step) % n) + n) % n
+        if (i === cur) return openLb(i) // front photo → enlarge
         let d = (((i - cur) % n) + n) % n
         if (d > n / 2) d -= n
         target -= d * step

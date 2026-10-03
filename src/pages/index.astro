@@ -12,8 +12,8 @@ const SIZES = [64, 49, 43, 58, 46, 39, 55, 40, 51, 45, 60, 36, 54, 46, 61, 43] /
 // plain color tile until its own project entry claims a slot
 const tileContent = new Map(
   projects
-    .filter((p) => p.tileIndex && p.image)
-    .map((p) => [p.tileIndex as number, { image: p.image as string, aspect: p.imageAspect ?? 1, title: p.title, href: `/projects/${p.slug}` }]),
+    .filter((p) => p.tileIndex && (p.tileImage ?? p.image))
+    .map((p) => [p.tileIndex as number, { image: (p.tileImage ?? p.image) as string, aspect: p.tileImage ? (p.tileImageAspect ?? 1) : (p.imageAspect ?? 1), title: p.title, href: `/projects/${p.slug}` }]),
 )
 
 function fibonacciSpherePoint(i: number, n: number) {
