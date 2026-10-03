@@ -15,6 +15,7 @@ export type Project = {
   imageAspect?: number // image의 원본 가로/세로 비율 (예: 16:9 → 16/9). 지정 시 홈 타일이 이 비율의 박스로 렌더링되어 크롭 없이 표시됨
   tileIndex?: number // 홈 히어로 구체의 어느 타일(1~16)에 이 프로젝트를 노출할지
   comingSoon?: boolean
+  layout?: 'cylinder' // 'cylinder' = caseStudy 이미지를 세로 스택 대신 가로로 도는 원기둥 갤러리로 표시
   caseStudy?: CaseStudyBlock[] // 상세 페이지 본문, 원본 자료 순서 그대로
 }
 
@@ -27,11 +28,31 @@ export const projects: Project[] = [
     description: '제품 디자인 프로젝트 자리표시자 설명입니다. 실제 콘텐츠로 교체 예정입니다.',
   },
   {
-    slug: 'photography-one',
-    title: 'Photography Project',
-    tags: ['Photography', 'Art Direction'],
+    slug: 'photography',
+    title: 'Photography - 05',
+    tags: ['Photography'],
     category: 2,
-    description: '포토그래피 프로젝트 자리표시자 설명입니다. 실제 콘텐츠로 교체 예정입니다.',
+    layout: 'cylinder',
+    image: '/images/photography/cover.jpg',
+    imageAspect: 16 / 9,
+    description: '동네의 빛과 그림자, 오래된 표면과 자라나는 식물을 따라 걸으며 담은 사진 연작.',
+    caseStudy: [
+      { type: 'image', src: '/images/photography/01.jpg', alt: 'Photograph 1' },
+      { type: 'image', src: '/images/photography/02.jpg', alt: 'Photograph 2' },
+      { type: 'image', src: '/images/photography/03.jpg', alt: 'Photograph 3' },
+      { type: 'image', src: '/images/photography/04.jpg', alt: 'Photograph 4' },
+      { type: 'image', src: '/images/photography/05.jpg', alt: 'Photograph 5' },
+      { type: 'image', src: '/images/photography/06.jpg', alt: 'Photograph 6' },
+      { type: 'image', src: '/images/photography/07.jpg', alt: 'Photograph 7' },
+      { type: 'image', src: '/images/photography/08.jpg', alt: 'Photograph 8' },
+      { type: 'image', src: '/images/photography/09.jpg', alt: 'Photograph 9' },
+      { type: 'image', src: '/images/photography/10.jpg', alt: 'Photograph 10' },
+      { type: 'image', src: '/images/photography/11.jpg', alt: 'Photograph 11' },
+      { type: 'image', src: '/images/photography/12.jpg', alt: 'Photograph 12' },
+      { type: 'image', src: '/images/photography/13.jpg', alt: 'Photograph 13' },
+      { type: 'image', src: '/images/photography/14.jpg', alt: 'Photograph 14' },
+      { type: 'image', src: '/images/photography/15.jpg', alt: 'Photograph 15' },
+    ],
   },
   {
     slug: 'visual-one',

@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro'
+import PhotoCylinder from '../../components/PhotoCylinder.astro'
 import { projects, categoryLabels } from '../../data/projects'
 
 export function getStaticPaths() {
@@ -10,7 +11,7 @@ const { project } = Astro.props
 ---
 
 <Layout title={`${project.title} — Portfolio`}>
-  <section class="mx-auto max-w-5xl px-6 py-16">
+  <section class:list={['mx-auto max-w-5xl px-6', project.layout === 'cylinder' ? 'pt-10 pb-4' : 'py-16']}>
     <p class="text-[12px] text-ink-muted">{categoryLabels[project.category]}</p>
     <h1 class="mt-2 text-[40px] font-semibold leading-[1.1] tracking-[0]">{project.title}</h1>
     {project.role && <p class="mt-1 text-[14px] italic text-ink-muted">{project.role}</p>}
@@ -20,9 +21,15 @@ const { project } = Astro.props
     </p>
   </section>
 
-  {project.caseStudy && (
+  {project.layout === 'cylinder' && project.caseStudy && (
+    <section class="pb-24">
+      <PhotoCylinder images={project.caseStudy.flatMap((b) => (b.type === 'image' ? [{ src: b.src, alt: b.alt }] : []))} />
+    </section>
+  )}
+
+  {project.layout !== 'cylinder' && project.caseStudy && (
     <section class="mx-auto max-w-[1536px] px-6 pb-24">
-      <div class="flex flex-col gap-16">
+      <div class="flex flex-col gap-4">
         {project.caseStudy.map((block) => {
           if (block.type === 'heading') {
             return (

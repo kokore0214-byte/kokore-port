@@ -1,0 +1,215 @@
+---
+interface Props {
+  images: { src: string; alt: string }[]
+}
+const { images } = Astro.props
+const n = images.length
+---
+
+<div class="cyl" data-cylinder style={`--n:${n}`} tabindex="0" aria-roledescription="carousel" aria-label="Photo gallery">
+  <div class="cyl-stage">
+    <div class="cyl-ring">
+      {images.map((img, i) => (
+        <button type="button" class="cyl-card" style={`--i:${i}`} aria-label={`Photo ${i + 1}`}>
+          <img src={img.src} alt={img.alt} draggable="false" loading={i < 5 ? 'eager' : 'lazy'} />
+        </button>
+      ))}
+    </div>
+  </div>
+  <div class="cyl-bar">
+    <button type="button" data-prev aria-label="Previous photo">←</button>
+    <span data-counter>01 / {String(n).padStart(2, '0')}</span>
+    <button type="button" data-next aria-label="Next photo">→</button>
+  </div>
+</div>
+
+<style>
+  .cyl {
+    --w: clamp(130px, min(20vw, 28vh), 250px);
+    --h: calc(var(--w) * 1.5);
+    outline: none;
+    user-select: none;
+  }
+  .cyl:focus-visible .cyl-stage {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+  .cyl-stage {
+    height: calc(var(--h) + 120px);
+    perspective: 1600px;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: pan-y;
+  }
+  .cyl-stage:active {
+    cursor: grabbing;
+  }
+  .cyl-ring {
+    position: relative;
+    width: var(--w);
+    height: var(--h);
+    margin: 60px auto 0;
+    transform-style: preserve-3d;
+    transform: translateZ(calc(var(--r) * -1)) rotateY(var(--a, 0deg));
+  }
+  .cyl-card {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    background: var(--color-parchment);
+    backface-visibility: hidden;
+    transform: rotateY(calc(var(--i) * 360deg / var(--n))) translateZ(var(--r));
+    cursor: inherit;
+  }
+  .cyl-card img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+  .cyl-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--color-ink-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .cyl-bar button {
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    font-size: 17px;
+    color: var(--color-accent);
+    box-shadow: inset 0 0 0 1px var(--color-hairline);
+    background: var(--color-canvas);
+  }
+  .cyl-bar button:hover {
+    background: var(--color-parchment);
+  }
+</style>
+
+<script>
+  // ponytail: per-frame lerp toward a snapped target; no inertia physics, upgrade only if flick feel matters
+  let raf = 0
+
+  function init() {
+    cancelAnimationFrame(raf)
+    const root = document.querySelector<HTMLElement>('[data-cylinder]')
+    if (!root) return
+    const stage = root.querySelector<HTMLElement>('.cyl-stage')!
+    const ring = root.querySelector<HTMLElement>('.cyl-ring')!
+    const cards = [...root.querySelectorAll<HTMLElement>('.cyl-card')]
+    const counter = root.querySelector<HTMLElement>('[data-counter]')!
+    const n = cards.length
+    const step = 360 / n
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    let angle = 0
+    let target = 0
+    let dragging = false
+    let moved = 0
+    let idle = 0
+
+    const layout = () => {
+      const w = cards[0].offsetWidth
+      root.style.setProperty('--r', `${(w * 1.18) / 2 / Math.tan(Math.PI / n)}px`)
+    }
+    const snap = () => {
+      target = Math.round(target / step) * step
+    }
+    const nudge = (d: number) => {
+      target = Math.round(target / step) * step + d * step
+    }
+
+    stage.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault()
+        target -= (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * 0.12
+        clearTimeout(idle)
+        idle = window.setTimeout(snap, 140)
+      },
+      { passive: false },
+    )
+
+    let startX = 0
+    let startT = 0
+    let lastX = 0
+    let lastTime = 0
+    let vel = 0
+    stage.addEventListener('pointerdown', (e) => {
+      dragging = true
+      moved = 0
+      startX = lastX = e.clientX
+      startT = target
+      lastTime = e.timeStamp
+      vel = 0
+      stage.setPointerCapture(e.pointerId)
+    })
+    stage.addEventListener('pointermove', (e) => {
+      if (!dragging) return
+      const dx = e.clientX - startX
+      moved = Math.max(moved, Math.abs(dx))
+      target = startT + dx * 0.3
+      const dt = e.timeStamp - lastTime
+      if (dt > 0) vel = ((e.clientX - lastX) * 0.3) / dt
+      lastX = e.clientX
+      lastTime = e.timeStamp
+    })
+    const end = () => {
+      if (!dragging) return
+      dragging = false
+      target += vel * 180
+      snap()
+    }
+    stage.addEventListener('pointerup', end)
+    stage.addEventListener('pointercancel', end)
+
+    cards.forEach((c, i) =>
+      c.addEventListener('click', () => {
+        if (moved > 6) return
+        const cur = Math.round(-target / step)
+        let d = (((i - cur) % n) + n) % n
+        if (d > n / 2) d -= n
+        target -= d * step
+      }),
+    )
+
+    root.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') {
+        nudge(-1)
+        e.preventDefault()
+      }
+      if (e.key === 'ArrowLeft') {
+        nudge(1)
+        e.preventDefault()
+      }
+    })
+    root.querySelector('[data-next]')!.addEventListener('click', () => nudge(-1))
+    root.querySelector('[data-prev]')!.addEventListener('click', () => nudge(1))
+    addEventListener('resize', layout)
+
+    layout()
+    const tick = () => {
+      angle += (target - angle) * (still ? 1 : 0.11)
+      if (Math.abs(target - angle) < 0.01) angle = target
+      ring.style.setProperty('--a', `${angle}deg`)
+      cards.forEach((c, i) => {
+        const d = ((((i * step + angle) % 360) + 540) % 360) - 180 // signed angular distance from the front card
+        c.style.opacity = String(1 - Math.min(1, Math.abs(d) / 100) * 0.75)
+      })
+      const idx = ((Math.round(-angle / step) % n) + n) % n
+      counter.textContent = `${String(idx + 1).padStart(2, '0')} / ${String(n).padStart(2, '0')}`
+      raf = requestAnimationFrame(tick)
+    }
+    tick()
+  }
+
+  document.addEventListener('astro:page-load', init)
+  document.addEventListener('astro:before-swap', () => cancelAnimationFrame(raf))
+</script>
