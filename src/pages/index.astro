@@ -473,7 +473,6 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
       // handoff to the normal frame() loop at the end is just "leave x0/y0/z0 where they are"
       function runIntro() {
         const n = tiles.length
-        const easeInQuad = (p: number) => p * p
         const easeInCubic = (p: number) => p * p * p
         const easeOutCubic = (p: number) => 1 - Math.pow(1 - p, 3)
 
@@ -481,7 +480,7 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
         const CYL_RADIUS = 240
         const CYL_HEIGHT = 140
         const SPIN_TOTAL_RAD = Math.PI * 5
-        const SHAPE_MS = 900
+        const SHAPE_MS = 700
         const CONVERGE_MS = 900
         const SPREAD_MS = 900
 
@@ -496,7 +495,8 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
           const elapsed = now - start
           if (elapsed < SHAPE_MS) {
             // band curls into a cylinder while spin ramps up from a standstill
-            const p = easeInQuad(elapsed / SHAPE_MS)
+            // ease-out: motion is already underway on the very first frame (an ease-in start reads as a pause)
+            const p = easeOutCubic(elapsed / SHAPE_MS)
             const spinAngle = SPIN_TOTAL_RAD * 0.35 * p
             for (let i = 0; i < n; i++) {
               const tile = tiles[i]
