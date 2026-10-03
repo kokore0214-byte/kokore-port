@@ -11,7 +11,7 @@ const n = images.length
     <div class="cyl-ring">
       {images.map((img, i) => (
         <button type="button" class="cyl-card" style={`--i:${i}`} aria-label={`Photo ${i + 1}`}>
-          <img src={img.src} alt={img.alt} draggable="false" loading={i < 5 ? 'eager' : 'lazy'} />
+          <img src={img.src} alt={img.alt} draggable="false" />
         </button>
       ))}
     </div>
