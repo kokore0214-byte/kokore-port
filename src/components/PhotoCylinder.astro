@@ -25,7 +25,7 @@ const n = images.length
 
 <style>
   .cyl {
-    --w: clamp(160px, min(26vw, 33vh), 380px);
+    --w: 200px; /* fallback — JS sizes it to the viewport */
     --h: calc(var(--w) * 1.5);
     outline: none;
     user-select: none;
@@ -35,7 +35,7 @@ const n = images.length
     outline-offset: -2px;
   }
   .cyl-stage {
-    height: calc(var(--h) + 120px);
+    height: calc(var(--h) + 60px);
     perspective: 2200px;
     overflow: hidden;
     cursor: grab;
@@ -48,7 +48,7 @@ const n = images.length
     position: relative;
     width: var(--w);
     height: var(--h);
-    margin: 60px auto 0;
+    margin: 40px auto 0;
     transform-style: preserve-3d;
     transform: translateZ(calc(var(--r) * -1)) rotateY(var(--a, 0deg));
   }
@@ -116,7 +116,11 @@ const n = images.length
     let idle = 0
 
     const layout = () => {
-      const w = cards[0].offsetWidth
+      // fit the ring to what is left of the viewport below the page heading (bar ≈ 44px + 24px breathing room)
+      const top = root.getBoundingClientRect().top + scrollY
+      const h = innerHeight - top - 44 - 24 - 60
+      const w = Math.max(110, Math.min(h / 1.5, innerWidth * (innerWidth < 640 ? 0.5 : 0.3)))
+      root.style.setProperty('--w', `${w}px`)
       root.style.setProperty('--r', `${(w * 1.18) / 2 / Math.tan(Math.PI / n)}px`)
     }
     const snap = () => {
