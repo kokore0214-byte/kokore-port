@@ -87,7 +87,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
       // hold a plus one moment and nothing the next. Grey by default; clicking (or moving while pressed) makes blue ones.
       // Pointer-only (hover devices) — touch screens keep the plain background.
       if (matchMedia('(hover: hover)').matches) {
-        type Plus = { blue: boolean; x: number; y: number; born: number; life: number; rot: number; spin: number; arm: number; vx: number; vy: number }
+        type Plus = { blue: boolean; x: number; y: number; born: number; life: number; rot: number; spin: number; arm: number; rise: number; wobble: number }
         const SPAWN_EVERY = 20 // px of cursor travel per new plus
         const SPREAD = [8, 52] // min/max distance from the cursor a plus can appear at (biased toward the near end)
         const LIFE = [2200, 3400] // ms until opacity reaches 0 — the only rule for removal (no count limit)
@@ -137,8 +137,8 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
             rot: rand(0, Math.PI),
             spin: rand(0.25, 0.7) * (Math.random() < 0.5 ? -1 : 1), // rad/s — slow
             arm: isBlue ? rand(5, 9) : rand(3.5, 7), // blue ones are a touch bigger so a click reads clearly
-            vx: rand(-3, 3), // barely drifts, px/s
-            vy: rand(-5, -1), // tiny upward float
+            rise: rand(26, 52), // total px it floats up over its life — a gentle fizz, not a launch
+            wobble: rand(0, Math.PI * 2), // phase of a tiny side-to-side sway
           })
         }
 
@@ -163,7 +163,8 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
               const alpha = Math.min(1, age / (p.blue ? 0.08 : 0.18)) * Math.pow(1 - t, 1.2) * (p.blue ? 1 : 0.85)
               const col = p.blue ? accent : grey
               ctx.save()
-              ctx.translate(p.x + p.vx * age, p.y + p.vy * age)
+              // rises slowly at first and a little faster as it fades, like a bubble; sways about 2px
+              ctx.translate(p.x + Math.sin(age * 2.2 + p.wobble) * 2, p.y - p.rise * Math.pow(t, 1.4))
               ctx.rotate(p.rot + p.spin * age)
               ctx.strokeStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${alpha.toFixed(3)})`
               ctx.beginPath()
