@@ -84,17 +84,16 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
     <script>
       // "+" marks that are born around the cursor as it moves: each one fades in at a random spot
       // nearby, turns slowly, and fades out — nothing is laid out in advance, so the same spot can
-      // hold a plus one moment and nothing the next. Grey by default, blue while the mouse is pressed.
+      // hold a plus one moment and nothing the next. Grey by default; clicking (or moving while pressed) makes blue ones.
       // Pointer-only (hover devices) — touch screens keep the plain background.
       if (matchMedia('(hover: hover)').matches) {
-        type Plus = { x: number; y: number; born: number; life: number; rot: number; spin: number; arm: number; vx: number; vy: number }
+        type Plus = { blue: boolean; x: number; y: number; born: number; life: number; rot: number; spin: number; arm: number; vx: number; vy: number }
         const SPAWN_EVERY = 20 // px of cursor travel per new plus
         const SPREAD = [8, 52] // min/max distance from the cursor a plus can appear at (biased toward the near end)
-        const LIFE = [900, 1600] // ms
+        const LIFE = [2200, 3400] // ms — long, the fade-out is a slow drop in opacity
         const MAX = 40
         const pluses: Plus[] = []
         let lx = 0, ly = 0, travelled = 0, seen = false
-        let blue = 0 // grey→blue mix 0..1
         let down = false
         let raf = 0
         let canvas: HTMLCanvasElement | null = null
@@ -121,10 +120,11 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
           return true
         }
 
-        const spawn = (cx: number, cy: number) => {
+        const spawn = (cx: number, cy: number, isBlue = false, spread = SPREAD) => {
           const ang = rand(0, Math.PI * 2)
-          const dist = SPREAD[0] + (SPREAD[1] - SPREAD[0]) * Math.pow(Math.random(), 1.8)
+          const dist = spread[0] + (spread[1] - spread[0]) * Math.pow(Math.random(), 1.8)
           pluses.push({
+            blue: isBlue,
             x: cx + Math.cos(ang) * dist,
             y: cy + Math.sin(ang) * dist,
             born: performance.now(),
@@ -139,14 +139,12 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
         }
 
         const loop = (now: number) => {
-          blue += ((down ? 1 : 0) - blue) * (down ? 0.3 : 0.08) // snaps blue on press, eases back on release
           if (ensure() && ctx) {
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
             ctx.clearRect(0, 0, innerWidth, innerHeight)
             const css = getComputedStyle(document.body)
             const grey = rgb(css.getPropertyValue('--color-ink-muted'))
             const accent = rgb(css.getPropertyValue('--color-accent'))
-            const col = grey.map((g, k) => Math.round(g + (accent[k] - g) * blue))
             ctx.lineWidth = 1.4
             ctx.lineCap = 'round'
             for (let i = pluses.length - 1; i >= 0; i--) {
@@ -157,7 +155,9 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
                 continue
               }
               const age = (now - p.born) / 1000
-              const alpha = Math.sin(Math.PI * t) * 0.85 // fade in, then out
+              // quick fade-in, then opacity drops steadily over the rest of its life
+              const alpha = Math.min(1, age / 0.18) * Math.pow(1 - t, 1.2) * 0.85
+              const col = p.blue ? accent : grey
               ctx.save()
               ctx.translate(p.x + p.vx * age, p.y + p.vy * age)
               ctx.rotate(p.rot + p.spin * age)
@@ -171,7 +171,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
               ctx.restore()
             }
           }
-          raf = pluses.length || Math.abs((down ? 1 : 0) - blue) > 0.01 ? requestAnimationFrame(loop) : 0
+          raf = pluses.length ? requestAnimationFrame(loop) : 0
         }
         const wake = () => {
           if (!raf) raf = requestAnimationFrame(loop)
@@ -188,15 +188,16 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
           ly = e.clientY
           let n = 0
           while (travelled >= SPAWN_EVERY && n < 3) {
-            spawn(e.clientX, e.clientY)
+            spawn(e.clientX, e.clientY, down)
             travelled -= SPAWN_EVERY
             n++
           }
           if (n === 3) travelled = 0 // fast flick: don't bank a burst for later
           wake()
         })
-        addEventListener('pointerdown', () => {
+        addEventListener('pointerdown', (e) => {
           down = true
+          for (let i = 0; i < 6; i++) spawn(e.clientX, e.clientY, true, [4, 40]) // a small blue burst where you click
           wake()
         })
         const release = () => {
