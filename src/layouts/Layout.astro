@@ -30,6 +30,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
     <ClientRouter />
   </head>
   <body class="min-h-screen bg-canvas text-ink" data-theme={dark ? 'dark' : undefined}>
+    <div class="plus-glow" aria-hidden="true"></div>
     <header class="sticky top-0 z-10 border-b border-hairline/60 bg-canvas/80 backdrop-blur-md">
       <nav class="mx-auto flex max-w-5xl items-center gap-6 px-6 py-4">
         <a href="/" class="text-[14px] font-semibold tracking-[-0.224px]">KOKORE</a>
@@ -80,5 +81,35 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
       </p>
       <p class="mt-8 text-[12px] text-ink-muted">&copy; {new Date().getFullYear()} Portfolio</p>
     </footer>
+    <script>
+      // "+" marks surface in a soft gradient around the cursor and trail it with a little easing;
+      // pointer-only (hover devices), so touch screens just keep the plain background
+      if (matchMedia('(hover: hover)').matches) {
+        let tx = 0, ty = 0, x = 0, y = 0, raf = 0, seen = false
+        const glow = () => document.querySelector<HTMLElement>('.plus-glow')
+        const step = () => {
+          x += (tx - x) * 0.16
+          y += (ty - y) * 0.16
+          const el = glow()
+          if (el) {
+            el.style.setProperty('--mx', `${x}px`)
+            el.style.setProperty('--my', `${y}px`)
+          }
+          raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.5 ? requestAnimationFrame(step) : 0
+        }
+        addEventListener('pointermove', (e) => {
+          tx = e.clientX
+          ty = e.clientY
+          if (!seen) {
+            x = tx
+            y = ty
+            seen = true
+          }
+          glow()?.classList.add('is-on')
+          if (!raf) raf = requestAnimationFrame(step)
+        })
+        document.documentElement.addEventListener('mouseleave', () => glow()?.classList.remove('is-on'))
+      }
+    </script>
   </body>
 </html>
