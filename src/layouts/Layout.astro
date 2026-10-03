@@ -90,8 +90,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
         type Plus = { blue: boolean; x: number; y: number; born: number; life: number; rot: number; spin: number; arm: number; vx: number; vy: number }
         const SPAWN_EVERY = 20 // px of cursor travel per new plus
         const SPREAD = [8, 52] // min/max distance from the cursor a plus can appear at (biased toward the near end)
-        const LIFE = [2200, 3400] // ms — long, the fade-out is a slow drop in opacity
-        const MAX = 40
+        const LIFE = [2200, 3400] // ms until opacity reaches 0 — the only rule for removal (no count limit)
         const pluses: Plus[] = []
         let lx = 0, ly = 0, travelled = 0, seen = false
         let down = false
@@ -141,7 +140,6 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
             vx: rand(-3, 3), // barely drifts, px/s
             vy: rand(-5, -1), // tiny upward float
           })
-          if (pluses.length > MAX) pluses.shift()
         }
 
         const loop = (now: number) => {
