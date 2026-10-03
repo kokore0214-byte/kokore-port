@@ -101,11 +101,17 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
         let dpr = 1
 
         const rand = (a: number, b: number) => a + Math.random() * (b - a)
+        // theme tokens may come back as #rgb, #rrggbb (minified CSS shortens #0066cc to #06c) or rgb()
         const rgb = (css: string): [number, number, number] => {
-          const hex = css.trim().match(/^#([0-9a-f]{6})$/i)?.[1] // theme tokens are 6-digit hex
-          if (!hex) return [128, 128, 128]
-          const n = parseInt(hex, 16)
-          return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+          const v = css.trim()
+          const hex = v.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1]
+          if (hex) {
+            const full = hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex
+            const n = parseInt(full, 16)
+            return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+          }
+          const m = v.match(/\d+(\.\d+)?/g)
+          return m && m.length >= 3 ? [+m[0], +m[1], +m[2]] : [128, 128, 128]
         }
         const ensure = () => {
           const el = document.querySelector<HTMLCanvasElement>('.plus-glow')
@@ -131,7 +137,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
             life: rand(LIFE[0], LIFE[1]),
             rot: rand(0, Math.PI),
             spin: rand(0.25, 0.7) * (Math.random() < 0.5 ? -1 : 1), // rad/s — slow
-            arm: rand(3.5, 7),
+            arm: isBlue ? rand(5, 9) : rand(3.5, 7), // blue ones are a touch bigger so a click reads clearly
             vx: rand(-3, 3), // barely drifts, px/s
             vy: rand(-5, -1), // tiny upward float
           })
@@ -156,7 +162,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
               }
               const age = (now - p.born) / 1000
               // quick fade-in, then opacity drops steadily over the rest of its life
-              const alpha = Math.min(1, age / 0.18) * Math.pow(1 - t, 1.2) * 0.85
+              const alpha = Math.min(1, age / (p.blue ? 0.08 : 0.18)) * Math.pow(1 - t, 1.2) * (p.blue ? 1 : 0.85)
               const col = p.blue ? accent : grey
               ctx.save()
               ctx.translate(p.x + p.vx * age, p.y + p.vy * age)
