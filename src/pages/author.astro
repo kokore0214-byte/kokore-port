@@ -1,0 +1,39 @@
+---
+import Layout from '../layouts/Layout.astro'
+
+// draft copy — first-person, short paragraphs; edit freely
+const paragraphs = [
+  '저는 버려지는 것에서 시작합니다. 소비되지 못하고 사라지는 쌀, 바다에서 건져 올린 굴 껍데기, 신문지 섬유 같은 재료를 만지다 보면 쓰레기라는 말은 대개 그 재료의 쓰임을 우리가 아직 상상하지 못했다는 뜻에 가깝다는 생각이 듭니다.',
+  '그래서 재료를 먼저 연구하고, 그 재료가 놓일 삶의 장면을 함께 설계합니다. 쌀로 만든 건축 자재와 굴 껍데기 책장은 같은 질문에서 나왔습니다. 사라지는 것을 어떻게 다시 남게 할 수 있을까.',
+  '때로는 제품 대신 질문을 만듭니다. 식탁을 함께 나누는 AI, 해조류 산업 속 노동자의 소외처럼 아직 오지 않았거나 보이지 않던 장면을 가까이 가져와서, 보는 사람이 직접 앉고 만져 보게 합니다.',
+  '사진은 같은 태도의 다른 방식입니다. 해가 저물기 전 짧게 머무는 빛, 녹슨 표면과 오래된 담벼락을 따라 걸으며 평범한 곳에서 이미 일어나고 있는 변화를 기록합니다.',
+  '좋은 디자인은 눈에 띄는 것보다 오래 남는 것이라고 믿습니다. 이 포트폴리오가 그 믿음이 어디까지 닿았는지 보여주는 기록이면 좋겠습니다.',
+]
+---
+
+<Layout title="Author's Note — Portfolio" dark>
+  <article class="mx-auto max-w-3xl px-6 pb-28 pt-24">
+    <p class="text-[14px] font-semibold tracking-[-0.224px] text-ink-muted">AUTHOR'S NOTE</p>
+    <h1
+      class="mt-6 text-[40px] italic leading-[1.2] tracking-[0] sm:text-[48px]"
+      style="font-family: var(--font-serif)"
+    >
+      Making things that stay in the world a little longer.
+    </h1>
+
+    <div class="mt-16 flex max-w-xl flex-col gap-7">
+      {paragraphs.map((text) => (
+        <p class="text-[17px] leading-[1.7] tracking-[-0.374px]">{text}</p>
+      ))}
+    </div>
+
+    <p class="mt-14 text-[14px] text-ink-muted">— Kim Juwon</p>
+
+    <a
+      href="/"
+      class="mt-16 inline-flex items-center gap-1 rounded-full bg-canvas px-[22px] py-[11px] text-[17px] text-accent ring-1 ring-hairline hover:bg-parchment"
+    >
+      ← Home
+    </a>
+  </article>
+</Layout>

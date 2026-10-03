@@ -57,7 +57,7 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
   >
     <div class="pointer-events-none mx-auto mb-10 flex w-full max-w-5xl flex-col gap-2 text-[13px] tracking-[-0.224px] sm:flex-row sm:items-start sm:justify-between">
       <a href="/about" class="pointer-events-auto w-fit font-semibold hover:text-accent transition-colors">KIM JUWON</a>
-      <span class="font-semibold">AUTHOR'S NOTE</span>
+      <a href="/author" data-author-link class="pointer-events-auto w-fit font-semibold hover:text-accent transition-colors">AUTHOR'S NOTE</a>
     </div>
 
     <div class="relative mx-auto w-full max-w-5xl flex-1 isolate">
@@ -218,6 +218,8 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
       let downY = 0
       let rafId = 0
       let expandedTile: Tile | null = null
+      let tileScale = 1 // multiplied into every tile's scale; the Author's Note outro shrinks it
+      let outroRunning = false
 
       function scheduleFrame() {
         rafId = requestAnimationFrame(frame)
@@ -244,7 +246,7 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
       // blur only if the extra softness turns out to matter.
       function applyProjection(tile: Tile) {
         const p = project(tile)
-        tile.el.style.transform = `translate3d(${p.x1 * p.scale}px, ${p.y2 * p.scale}px, 0) translate(-50%, -50%) scale(${p.scale})`
+        tile.el.style.transform = `translate3d(${p.x1 * p.scale}px, ${p.y2 * p.scale}px, 0) translate(-50%, -50%) scale(${p.scale * tileScale})`
         tile.el.style.opacity = String(p.opacity)
         if (!tile.hasImage) tile.el.style.backgroundColor = `rgb(${p.r}, ${p.g}, ${p.b})`
         tile.el.style.zIndex = String(Math.round(p.z2 + 1000))
@@ -299,12 +301,99 @@ const sphereTiles = Array.from({ length: TILE_COUNT }, (_, i) => {
         }, COLLAPSE_MS)
       }
 
+      // Author's Note outro: tiles pull together into a small, fast-spinning sphere, squeeze down
+      // to a single dot, and the dot swells until the whole screen is the page's charcoal —
+      // then the router hands over to /author, which is already that colour (no flash)
+      function runOutro(href: string) {
+        if (outroRunning) return
+        outroRunning = true
+        if (expandedTile) collapseTile()
+        cancelAnimationFrame(rafId)
+        const prev = (stage as any).__sphereRafId
+        if (prev) cancelAnimationFrame(prev)
+        dragging = false
+
+        const CHARCOAL = '#2a2a2d'
+        const SHRINK_MS = 850
+        const DOT_MS = 450
+        const GROW_MS = 800
+        const SMALL = 0.24 // radius of the "small sphere" relative to the full one
+        const base = tiles.map((t) => [t.x0, t.y0, t.z0] as const)
+        const easeInOutCubic = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2)
+        const easeInCubic = (p: number) => p * p * p
+        const start = performance.now()
+
+        const spin = (speed: number) => {
+          orientation = mat3Multiply(mat3FromAxisAngle(0, 1, 0, speed), orientation)
+        }
+        const place = (radius: number) => {
+          tiles.forEach((t, i) => {
+            t.x0 = base[i][0] * radius
+            t.y0 = base[i][1] * radius
+            t.z0 = base[i][2] * radius
+          })
+        }
+
+        function grow() {
+          const r = sphereEl!.getBoundingClientRect()
+          const cx = r.left + r.width / 2
+          const cy = r.top + r.height / 2
+          const reach = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy))
+          const D = 12
+          const dot = document.createElement('div')
+          dot.style.cssText = `position:fixed;left:${cx - D / 2}px;top:${cy - D / 2}px;width:${D}px;height:${D}px;border-radius:50%;background:${CHARCOAL};z-index:9999;transform:scale(1);will-change:transform;pointer-events:none`
+          document.body.appendChild(dot)
+          for (const t of tiles) t.el.style.opacity = '0'
+          dot.getBoundingClientRect() // commit the start state so the transition runs
+          dot.style.transition = `transform ${GROW_MS}ms cubic-bezier(0.65, 0, 0.35, 1)`
+          dot.style.transform = `scale(${(reach * 2.05) / D})`
+          window.setTimeout(() => navigate(href), GROW_MS)
+        }
+
+        function tick(now: number) {
+          const e = now - start
+          if (e < SHRINK_MS) {
+            const p = easeInOutCubic(e / SHRINK_MS)
+            place(1 - (1 - SMALL) * p)
+            tileScale = 1 - 0.35 * p
+            spin(0.02 + 0.28 * p) // spin ramps up while the sphere tightens
+          } else if (e < SHRINK_MS + DOT_MS) {
+            const q = easeInCubic((e - SHRINK_MS) / DOT_MS)
+            place(SMALL * (1 - q))
+            tileScale = 0.65 * (1 - 0.55 * q)
+            spin(0.3)
+          } else {
+            place(0)
+            render()
+            grow()
+            return
+          }
+          render()
+          const id = requestAnimationFrame(tick)
+          ;(stage as any).__sphereRafId = id
+        }
+        const id = requestAnimationFrame(tick)
+        ;(stage as any).__sphereRafId = id
+      }
+
+      document.querySelector<HTMLElement>('[data-author-link]')?.addEventListener('click', (e) => {
+        e.preventDefault()
+        if (reduceMotion) navigate('/author')
+        else runOutro('/author')
+      })
+
       function handleClick(x: number, y: number) {
         if (expandedTile) {
           collapseTile()
           return
         }
         const el = document.elementFromPoint(x, y) as HTMLElement | null
+        // the stage holds pointer capture, which can swallow the link's own click — catch it here too
+        if (el?.closest('[data-author-link]')) {
+          if (reduceMotion) navigate('/author')
+          else runOutro('/author')
+          return
+        }
         const tileEl = el?.closest('.sphere-tile') as HTMLElement | null
         if (!tileEl) return
         const tile = tiles.find((t) => t.el === tileEl)
