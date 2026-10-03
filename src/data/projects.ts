@@ -30,12 +30,12 @@ export const projects: Project[] = [
   {
     slug: 'photography',
     title: 'Photography - 05',
-    tags: ['Photography'],
+    tags: ['Photography', 'Light & Shadow', 'Color Grading'],
     category: 2,
     layout: 'cylinder',
     image: '/images/photography/cover.jpg',
     imageAspect: 16 / 9,
-    description: '동네의 빛과 그림자, 오래된 표면과 자라나는 식물을 따라 걸으며 담은 사진 연작.',
+    description: '봄과 여름 사이, 해가 저물기 전 따뜻한 빛과 그림자가 교차하는 순간을 담은 사진 연작. 주차금지 표지에 맺힌 반사광, 두 벽 사이에 녹슨 물건, 흰 울타리에 기댄 나무막대처럼 프레임 속 프레임과 빛의 흐름이 겹치는 장면을 따라갔다. 따뜻한 색온도와 마스크 보정으로 피사체가 빛에 드러나는 형태를 살리고, 초여름의 온기와 색감을 전한다.',
     caseStudy: [
       { type: 'image', src: '/images/photography/01.jpg', alt: 'Photograph 1' },
       { type: 'image', src: '/images/photography/02.jpg', alt: 'Photograph 2' },
