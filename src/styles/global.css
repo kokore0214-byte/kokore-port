@@ -23,6 +23,19 @@ body {
   color: var(--color-ink);
   background: var(--color-canvas);
   -webkit-font-smoothing: antialiased;
+  /* Korean: break between words, never mid-word; long strings still wrap instead of overflowing */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* readable Korean prose: looser leading + near-zero tracking (the -0.374px display tracking crowds hangul), balanced line ends */
+.prose-ko {
+  line-height: 1.85;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+.heading-balance {
+  text-wrap: balance;
 }
 
 @media (prefers-reduced-motion: reduce) {
