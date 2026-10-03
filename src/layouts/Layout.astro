@@ -82,28 +82,26 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
       <p class="mt-8 text-[12px] text-ink-muted">&copy; {new Date().getFullYear()} Portfolio</p>
     </footer>
     <script>
-      // Cursor-following "+" field, drawn on a canvas so each mark can be placed individually:
-      // staggered rows, a deterministic ~22% of cells left empty, grey by default, blue while pressed.
+      // "+" marks that are born around the cursor as it moves: each one fades in at a random spot
+      // nearby, turns slowly, and fades out — nothing is laid out in advance, so the same spot can
+      // hold a plus one moment and nothing the next. Grey by default, blue while the mouse is pressed.
       // Pointer-only (hover devices) — touch screens keep the plain background.
       if (matchMedia('(hover: hover)').matches) {
-        const GAP = 20 // spacing between marks
-        const ARM = 3.2 // half-length of a plus arm
-        const RADIUS = 270 // reach of the glow
-        const EMPTY = 0.22 // share of grid cells left blank
-        let mx = 0, my = 0, tx = 0, ty = 0
-        let seen = false, on = false, down = false
-        let fade = 0 // overall visibility 0..1
+        type Plus = { x: number; y: number; born: number; life: number; rot: number; spin: number; arm: number; vx: number; vy: number }
+        const SPAWN_EVERY = 34 // px of cursor travel per new plus
+        const SPREAD = [14, 100] // min/max distance from the cursor a plus can appear at
+        const LIFE = [1400, 2600] // ms
+        const MAX = 45
+        const pluses: Plus[] = []
+        let lx = 0, ly = 0, travelled = 0, seen = false
         let blue = 0 // grey→blue mix 0..1
+        let down = false
         let raf = 0
         let canvas: HTMLCanvasElement | null = null
         let ctx: CanvasRenderingContext2D | null = null
         let dpr = 1
 
-        // stable pseudo-random per cell so the gaps don't flicker as the cursor moves
-        const rnd = (i: number, j: number) => {
-          const v = Math.sin(i * 127.1 + j * 311.7) * 43758.5453
-          return v - Math.floor(v)
-        }
+        const rand = (a: number, b: number) => a + Math.random() * (b - a)
         const rgb = (css: string): [number, number, number] => {
           const hex = css.trim().match(/^#([0-9a-f]{6})$/i)?.[1] // theme tokens are 6-digit hex
           if (!hex) return [128, 128, 128]
@@ -123,64 +121,78 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
           return true
         }
 
-        const draw = () => {
-          if (!ensure() || !ctx || !canvas) return
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-          ctx.clearRect(0, 0, innerWidth, innerHeight)
-          if (fade < 0.01) return
-          const css = getComputedStyle(document.body)
-          const grey = rgb(css.getPropertyValue('--color-ink-muted'))
-          const accent = rgb(css.getPropertyValue('--color-accent'))
-          const col = grey.map((g, k) => Math.round(g + (accent[k] - g) * blue))
-          ctx.lineWidth = 1.2
-          ctx.lineCap = 'round'
-          const row0 = Math.max(0, Math.floor((my - RADIUS) / GAP))
-          const row1 = Math.ceil((my + RADIUS) / GAP)
-          for (let j = row0; j <= row1; j++) {
-            const y = j * GAP
-            const shift = j % 2 ? GAP / 2 : 0 // stagger every other row
-            const c0 = Math.floor((mx - RADIUS - shift) / GAP)
-            const c1 = Math.ceil((mx + RADIUS - shift) / GAP)
-            for (let i = c0; i <= c1; i++) {
-              const r = rnd(i, j)
-              if (r < EMPTY) continue
-              const x = i * GAP + shift
-              const d = Math.hypot(x - mx, y - my) / RADIUS
-              if (d >= 1) continue
-              const a = Math.pow(1 - d, 1.4) * (0.55 + 0.45 * r) * fade
-              ctx.strokeStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${a.toFixed(3)})`
-              ctx.beginPath()
-              ctx.moveTo(x - ARM, y)
-              ctx.lineTo(x + ARM, y)
-              ctx.moveTo(x, y - ARM)
-              ctx.lineTo(x, y + ARM)
-              ctx.stroke()
-            }
-          }
+        const spawn = (cx: number, cy: number) => {
+          const ang = rand(0, Math.PI * 2)
+          const dist = rand(SPREAD[0], SPREAD[1])
+          pluses.push({
+            x: cx + Math.cos(ang) * dist,
+            y: cy + Math.sin(ang) * dist,
+            born: performance.now(),
+            life: rand(LIFE[0], LIFE[1]),
+            rot: rand(0, Math.PI),
+            spin: rand(0.25, 0.7) * (Math.random() < 0.5 ? -1 : 1), // rad/s — slow
+            arm: rand(3.5, 7),
+            vx: rand(-6, 6), // gentle drift, px/s
+            vy: rand(-10, -2), // tends to float upward
+          })
+          if (pluses.length > MAX) pluses.shift()
         }
 
-        const loop = () => {
-          mx += (tx - mx) * 0.2
-          my += (ty - my) * 0.2
-          fade += ((on ? 1 : 0) - fade) * 0.12
-          blue += ((down ? 1 : 0) - blue) * (down ? 0.35 : 0.08) // snaps blue on press, eases back to grey on release
-          draw()
-          const settled = Math.abs(tx - mx) + Math.abs(ty - my) < 0.5 && Math.abs((on ? 1 : 0) - fade) < 0.01 && Math.abs((down ? 1 : 0) - blue) < 0.01
-          raf = settled ? 0 : requestAnimationFrame(loop)
+        const loop = (now: number) => {
+          blue += ((down ? 1 : 0) - blue) * (down ? 0.3 : 0.08) // snaps blue on press, eases back on release
+          if (ensure() && ctx) {
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+            ctx.clearRect(0, 0, innerWidth, innerHeight)
+            const css = getComputedStyle(document.body)
+            const grey = rgb(css.getPropertyValue('--color-ink-muted'))
+            const accent = rgb(css.getPropertyValue('--color-accent'))
+            const col = grey.map((g, k) => Math.round(g + (accent[k] - g) * blue))
+            ctx.lineWidth = 1.4
+            ctx.lineCap = 'round'
+            for (let i = pluses.length - 1; i >= 0; i--) {
+              const p = pluses[i]
+              const t = (now - p.born) / p.life
+              if (t >= 1) {
+                pluses.splice(i, 1)
+                continue
+              }
+              const age = (now - p.born) / 1000
+              const alpha = Math.sin(Math.PI * t) * 0.85 // fade in, then out
+              ctx.save()
+              ctx.translate(p.x + p.vx * age, p.y + p.vy * age)
+              ctx.rotate(p.rot + p.spin * age)
+              ctx.strokeStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${alpha.toFixed(3)})`
+              ctx.beginPath()
+              ctx.moveTo(-p.arm, 0)
+              ctx.lineTo(p.arm, 0)
+              ctx.moveTo(0, -p.arm)
+              ctx.lineTo(0, p.arm)
+              ctx.stroke()
+              ctx.restore()
+            }
+          }
+          raf = pluses.length || Math.abs((down ? 1 : 0) - blue) > 0.01 ? requestAnimationFrame(loop) : 0
         }
         const wake = () => {
           if (!raf) raf = requestAnimationFrame(loop)
         }
 
         addEventListener('pointermove', (e) => {
-          tx = e.clientX
-          ty = e.clientY
           if (!seen) {
-            mx = tx
-            my = ty
+            lx = e.clientX
+            ly = e.clientY
             seen = true
           }
-          on = true
+          travelled += Math.hypot(e.clientX - lx, e.clientY - ly)
+          lx = e.clientX
+          ly = e.clientY
+          let n = 0
+          while (travelled >= SPAWN_EVERY && n < 3) {
+            spawn(e.clientX, e.clientY)
+            travelled -= SPAWN_EVERY
+            n++
+          }
+          if (n === 3) travelled = 0 // fast flick: don't bank a burst for later
           wake()
         })
         addEventListener('pointerdown', () => {
@@ -194,8 +206,8 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
         addEventListener('pointerup', release)
         addEventListener('pointercancel', release)
         document.documentElement.addEventListener('mouseleave', () => {
-          on = false
           down = false
+          seen = false
           wake()
         })
         addEventListener('resize', () => {
