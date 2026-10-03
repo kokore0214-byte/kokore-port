@@ -30,7 +30,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
     <ClientRouter />
   </head>
   <body class="min-h-screen bg-canvas text-ink" data-theme={dark ? 'dark' : undefined}>
-    <div class="plus-glow" aria-hidden="true"></div>
+    <canvas class="plus-glow" aria-hidden="true"></canvas>
     <header class="sticky top-0 z-10 border-b border-hairline/60 bg-canvas/80 backdrop-blur-md">
       <nav class="mx-auto flex max-w-5xl items-center gap-6 px-6 py-4">
         <a href="/" class="text-[14px] font-semibold tracking-[-0.224px]">KOKORE</a>
@@ -82,33 +82,126 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
       <p class="mt-8 text-[12px] text-ink-muted">&copy; {new Date().getFullYear()} Portfolio</p>
     </footer>
     <script>
-      // "+" marks surface in a soft gradient around the cursor and trail it with a little easing;
-      // pointer-only (hover devices), so touch screens just keep the plain background
+      // Cursor-following "+" field, drawn on a canvas so each mark can be placed individually:
+      // staggered rows, a deterministic ~22% of cells left empty, grey by default, blue while pressed.
+      // Pointer-only (hover devices) — touch screens keep the plain background.
       if (matchMedia('(hover: hover)').matches) {
-        let tx = 0, ty = 0, x = 0, y = 0, raf = 0, seen = false
-        const glow = () => document.querySelector<HTMLElement>('.plus-glow')
-        const step = () => {
-          x += (tx - x) * 0.16
-          y += (ty - y) * 0.16
-          const el = glow()
-          if (el) {
-            el.style.setProperty('--mx', `${x}px`)
-            el.style.setProperty('--my', `${y}px`)
-          }
-          raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.5 ? requestAnimationFrame(step) : 0
+        const GAP = 20 // spacing between marks
+        const ARM = 3.2 // half-length of a plus arm
+        const RADIUS = 270 // reach of the glow
+        const EMPTY = 0.22 // share of grid cells left blank
+        let mx = 0, my = 0, tx = 0, ty = 0
+        let seen = false, on = false, down = false
+        let fade = 0 // overall visibility 0..1
+        let blue = 0 // grey→blue mix 0..1
+        let raf = 0
+        let canvas: HTMLCanvasElement | null = null
+        let ctx: CanvasRenderingContext2D | null = null
+        let dpr = 1
+
+        // stable pseudo-random per cell so the gaps don't flicker as the cursor moves
+        const rnd = (i: number, j: number) => {
+          const v = Math.sin(i * 127.1 + j * 311.7) * 43758.5453
+          return v - Math.floor(v)
         }
+        const rgb = (css: string): [number, number, number] => {
+          const hex = css.trim().match(/^#([0-9a-f]{6})$/i)?.[1] // theme tokens are 6-digit hex
+          if (!hex) return [128, 128, 128]
+          const n = parseInt(hex, 16)
+          return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+        }
+        const ensure = () => {
+          const el = document.querySelector<HTMLCanvasElement>('.plus-glow')
+          if (!el) return false
+          if (el !== canvas || el.width !== Math.round(innerWidth * dpr)) {
+            canvas = el
+            dpr = Math.min(devicePixelRatio || 1, 2)
+            el.width = Math.round(innerWidth * dpr)
+            el.height = Math.round(innerHeight * dpr)
+            ctx = el.getContext('2d')
+          }
+          return true
+        }
+
+        const draw = () => {
+          if (!ensure() || !ctx || !canvas) return
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+          ctx.clearRect(0, 0, innerWidth, innerHeight)
+          if (fade < 0.01) return
+          const css = getComputedStyle(document.body)
+          const grey = rgb(css.getPropertyValue('--color-ink-muted'))
+          const accent = rgb(css.getPropertyValue('--color-accent'))
+          const col = grey.map((g, k) => Math.round(g + (accent[k] - g) * blue))
+          ctx.lineWidth = 1.2
+          ctx.lineCap = 'round'
+          const row0 = Math.max(0, Math.floor((my - RADIUS) / GAP))
+          const row1 = Math.ceil((my + RADIUS) / GAP)
+          for (let j = row0; j <= row1; j++) {
+            const y = j * GAP
+            const shift = j % 2 ? GAP / 2 : 0 // stagger every other row
+            const c0 = Math.floor((mx - RADIUS - shift) / GAP)
+            const c1 = Math.ceil((mx + RADIUS - shift) / GAP)
+            for (let i = c0; i <= c1; i++) {
+              const r = rnd(i, j)
+              if (r < EMPTY) continue
+              const x = i * GAP + shift
+              const d = Math.hypot(x - mx, y - my) / RADIUS
+              if (d >= 1) continue
+              const a = Math.pow(1 - d, 1.4) * (0.55 + 0.45 * r) * fade
+              ctx.strokeStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${a.toFixed(3)})`
+              ctx.beginPath()
+              ctx.moveTo(x - ARM, y)
+              ctx.lineTo(x + ARM, y)
+              ctx.moveTo(x, y - ARM)
+              ctx.lineTo(x, y + ARM)
+              ctx.stroke()
+            }
+          }
+        }
+
+        const loop = () => {
+          mx += (tx - mx) * 0.2
+          my += (ty - my) * 0.2
+          fade += ((on ? 1 : 0) - fade) * 0.12
+          blue += ((down ? 1 : 0) - blue) * (down ? 0.35 : 0.08) // snaps blue on press, eases back to grey on release
+          draw()
+          const settled = Math.abs(tx - mx) + Math.abs(ty - my) < 0.5 && Math.abs((on ? 1 : 0) - fade) < 0.01 && Math.abs((down ? 1 : 0) - blue) < 0.01
+          raf = settled ? 0 : requestAnimationFrame(loop)
+        }
+        const wake = () => {
+          if (!raf) raf = requestAnimationFrame(loop)
+        }
+
         addEventListener('pointermove', (e) => {
           tx = e.clientX
           ty = e.clientY
           if (!seen) {
-            x = tx
-            y = ty
+            mx = tx
+            my = ty
             seen = true
           }
-          glow()?.classList.add('is-on')
-          if (!raf) raf = requestAnimationFrame(step)
+          on = true
+          wake()
         })
-        document.documentElement.addEventListener('mouseleave', () => glow()?.classList.remove('is-on'))
+        addEventListener('pointerdown', () => {
+          down = true
+          wake()
+        })
+        const release = () => {
+          down = false
+          wake()
+        }
+        addEventListener('pointerup', release)
+        addEventListener('pointercancel', release)
+        document.documentElement.addEventListener('mouseleave', () => {
+          on = false
+          down = false
+          wake()
+        })
+        addEventListener('resize', () => {
+          canvas = null // forces a resize on the next frame
+          wake()
+        })
       }
     </script>
   </body>
